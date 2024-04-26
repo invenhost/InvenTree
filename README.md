@@ -7,3 +7,5 @@ This project is a stripped downs version of the [InvenTree project](https://gith
 
 Changes from upstream are listed here:
 - cleanup of repo initial setup
+
+Please always report security issues upstream and If you can to sec@mjmair.com
