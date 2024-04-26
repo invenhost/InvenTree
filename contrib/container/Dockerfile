@@ -16,6 +16,7 @@ FROM ${base_image} AS inventree_base
 ARG commit_tag=""
 ARG commit_hash=""
 ARG commit_date=""
+ARG SOURCE_DATE_EPOCH
 
 ARG data_dir="data"
 
