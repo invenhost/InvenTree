@@ -173,7 +173,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           sbom: true
-          provenance: false
+          provenance: mode=max
           target: production
           tags: ${{ env.docker_tags }}
           build-args: |
