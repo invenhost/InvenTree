@@ -62,10 +62,10 @@ jobs:
     needs: paths-filter
     if: needs.paths-filter.outputs.docker == 'true' || github.event_name == 'release' || github.event_name == 'push'
     permissions:
-      contents: read
-      packages: write
       id-token: write
+      packages: write
       attestations: write
+      contents: read
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       python_version: "3.11"
