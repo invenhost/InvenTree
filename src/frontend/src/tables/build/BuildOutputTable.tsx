@@ -1,10 +1,6 @@
 import { t } from '@lingui/macro';
 import { Group, Text } from '@mantine/core';
-import {
-  IconCircleCheck,
-  IconCircleX,
-  IconExclamationCircle
-} from '@tabler/icons-react';
+import { IconCircleCheck, IconCircleX } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
@@ -120,13 +116,13 @@ export default function BuildOutputTable({
       />,
       <ActionButton
         tooltip={t`Scrap selected outputs`}
-        icon={<InvenTreeIcon icon="cancel" />}
+        icon={<InvenTreeIcon icon="delete" />}
         color="red"
         disabled={!table.hasSelectedRecords}
       />,
       <ActionButton
         tooltip={t`Cancel selected outputs`}
-        icon={<InvenTreeIcon icon="delete" />}
+        icon={<InvenTreeIcon icon="cancel" />}
         color="red"
         disabled={!table.hasSelectedRecords}
       />
@@ -157,14 +153,14 @@ export default function BuildOutputTable({
         {
           title: t`Scrap`,
           tooltip: t`Scrap build output`,
-          color: 'red',
-          icon: <InvenTreeIcon icon="cancel" />
+          icon: <InvenTreeIcon icon="delete" />,
+          color: 'red'
         },
         {
-          title: t`Delete`,
-          tooltip: t`Delete build output`,
-          color: 'red',
-          icon: <InvenTreeIcon icon="delete" />
+          title: t`Cancel`,
+          tooltip: t`Cancel build output`,
+          icon: <InvenTreeIcon icon="cancel" />,
+          color: 'red'
         }
       ];
 
