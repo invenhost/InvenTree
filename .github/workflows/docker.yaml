@@ -116,7 +116,6 @@ jobs:
           test -f data/plugins.txt
           test -f data/secret_key.txt
       - name: Run Unit Tests
-        if: false
         run: |
           echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> contrib/container/docker.dev.env
           docker compose --project-directory . -f contrib/container/dev-docker-compose.yml run inventree-dev-server invoke test --disable-pty
@@ -181,6 +180,7 @@ jobs:
           DIGEST: ${{ steps.push-docker.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
       - name: Attest image
+        if: ${{ github.event_name != 'pull_request' }}
         uses: github-early-access/generate-build-provenance@main
         with:
           subject-name: ghcr.io/${{ github.repository }}
