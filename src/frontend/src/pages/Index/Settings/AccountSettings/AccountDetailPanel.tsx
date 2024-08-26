@@ -17,12 +17,21 @@ export function AccountDetailPanel() {
   const form = useForm({ initialValues: user });
   const [editing, setEditing] = useToggle([false, true] as const);
   function SaveData(values: any) {
-    api.put(apiUrl(ApiEndpoints.user_me), values).then((res) => {
-      if (res.status === 200) {
-        setEditing();
-        fetchUserState();
-      }
-    });
+    // copy values over to break form rendering link
+    const urlVals = { ...values };
+    urlVals.is_active = true;
+    // send
+    api
+      .put(apiUrl(ApiEndpoints.user_me), urlVals)
+      .then((res) => {
+        if (res.status === 200) {
+          setEditing();
+          fetchUserState();
+        }
+      })
+      .catch(() => {
+        console.error('ERR: Error saving user data');
+      });
   }
 
   return (
@@ -35,7 +44,7 @@ export function AccountDetailPanel() {
       </Group>
       <Group>
         {editing ? (
-          <Stack spacing="xs">
+          <Stack gap="xs">
             <TextInput
               label="first name"
               placeholder={t`First name`}
@@ -46,14 +55,14 @@ export function AccountDetailPanel() {
               placeholder={t`Last name`}
               {...form.getInputProps('last_name')}
             />
-            <Group position="right" mt="md">
+            <Group justify="right" mt="md">
               <Button type="submit">
                 <Trans>Submit</Trans>
               </Button>
             </Group>
           </Stack>
         ) : (
-          <Stack spacing="0">
+          <Stack gap="0">
             <Text>
               <Trans>First name: </Trans>
               {form.values.first_name}

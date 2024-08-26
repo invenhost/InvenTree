@@ -1,6 +1,5 @@
 import { t } from '@lingui/macro';
 import { Group, Text } from '@mantine/core';
-import { access } from 'fs';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,7 +19,7 @@ import { useUserState } from '../../states/UserState';
 import { BooleanColumn, DescriptionColumn } from '../ColumnRenderers';
 import { TableFilter } from '../Filter';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowEditAction } from '../RowActions';
+import { RowAction, RowEditAction } from '../RowActions';
 
 /**
  * A table which displays a list of company records,
@@ -45,7 +44,7 @@ export function CompanyTable({
         sortable: true,
         render: (record: any) => {
           return (
-            <Group spacing="xs" noWrap={true}>
+            <Group gap="xs" wrap="nowrap">
               <Thumbnail
                 src={record.thumbnail ?? record.image ?? ''}
                 alt={record.name}
@@ -129,7 +128,7 @@ export function CompanyTable({
   }, [user]);
 
   const rowActions = useCallback(
-    (record: any) => {
+    (record: any): RowAction[] => {
       return [
         RowEditAction({
           hidden:
@@ -159,6 +158,7 @@ export function CompanyTable({
           },
           tableFilters: tableFilters,
           tableActions: tableActions,
+          enableDownload: true,
           rowActions: rowActions,
           onRowClick: (row: any) => {
             if (row.pk) {

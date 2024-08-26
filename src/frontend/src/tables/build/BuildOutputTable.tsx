@@ -1,12 +1,8 @@
 import { t } from '@lingui/macro';
 import { Group, Text } from '@mantine/core';
-import {
-  IconCircleCheck,
-  IconCircleX,
-  IconExclamationCircle
-} from '@tabler/icons-react';
+import { IconCircleCheck, IconCircleX } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../App';
 import { ActionButton } from '../../components/buttons/ActionButton';
@@ -15,7 +11,15 @@ import { ProgressBar } from '../../components/items/ProgressBar';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
+import {
+  useBuildOrderOutputFields,
+  useCancelBuildOutputsForm,
+  useCompleteBuildOutputsForm,
+  useScrapBuildOutputsForm
+} from '../../forms/BuildForms';
 import { InvenTreeIcon } from '../../functions/icons';
+import { notYetImplemented } from '../../functions/notifications';
+import { useCreateApiFormModal } from '../../hooks/UseForm';
 import { useTable } from '../../hooks/UseTable';
 import { apiUrl } from '../../states/ApiState';
 import { useUserState } from '../../states/UserState';
@@ -30,21 +34,28 @@ type TestResultOverview = {
   result: boolean;
 };
 
-export default function BuildOutputTable({
-  buildId,
-  partId
-}: {
-  buildId: number;
-  partId: number;
-}) {
+export default function BuildOutputTable({ build }: { build: any }) {
   const user = useUserState();
   const table = useTable('build-outputs');
 
+  const buildId: number = useMemo(() => {
+    return build.pk ?? -1;
+  }, [build.pk]);
+
+  const partId: number = useMemo(() => {
+    return build.part ?? -1;
+  }, [build.part]);
+
   // Fetch the test templates associated with the partId
   const { data: testTemplates } = useQuery({
-    queryKey: ['buildoutputtests', partId],
+    queryKey: ['buildoutputtests', partId, build],
     queryFn: async () => {
-      if (!partId) {
+      if (!partId || partId < 0) {
+        return [];
+      }
+
+      // If the part is not testable, return an empty array
+      if (!build?.part_detail?.testable) {
         return [];
       }
 
@@ -66,10 +77,40 @@ export default function BuildOutputTable({
     return (testTemplates?.length ?? 0) > 0;
   }, [partId, testTemplates]);
 
+  // Fetch the "tracked" BOM items associated with the partId
+  const { data: trackedItems } = useQuery({
+    queryKey: ['trackeditems', buildId],
+    queryFn: async () => {
+      if (!buildId || buildId < 0) {
+        return [];
+      }
+
+      return api
+        .get(apiUrl(ApiEndpoints.build_line_list), {
+          params: {
+            build: buildId,
+            tracked: true
+          }
+        })
+        .then((response) => response.data)
+        .catch(() => []);
+    }
+  });
+
+  const hasTrackedItems: boolean = useMemo(() => {
+    return (trackedItems?.length ?? 0) > 0;
+  }, [trackedItems]);
+
+  // Ensure base table data is updated correctly
+  useEffect(() => {
+    table.refreshTable();
+  }, [hasTrackedItems, hasRequiredTests]);
+
   // Format table records
   const formatRecords = useCallback(
     (records: any[]): any[] => {
       records?.forEach((record: any, index: number) => {
+        // Test result information, per record
         let results: TestResultOverview[] = [];
         let passCount: number = 0;
 
@@ -95,82 +136,165 @@ export default function BuildOutputTable({
 
         records[index].passCount = passCount;
         records[index].results = results;
+
+        // Stock allocation information, per record
+        let fullyAllocatedCount: number = 0;
+
+        // Iterate through each tracked item
+        trackedItems?.forEach((item: any) => {
+          let allocated = 0;
+
+          // Find all allocations which match the build output
+          let allocations = item.allocations.filter(
+            (allocation: any) => (allocation.install_into = record.pk)
+          );
+
+          allocations.forEach((allocation: any) => {
+            allocated += allocation.quantity;
+          });
+
+          if (allocated >= item.bom_item_detail.quantity) {
+            fullyAllocatedCount += 1;
+          }
+        });
+
+        records[index].fullyAllocated = fullyAllocatedCount;
       });
 
       return records;
     },
-    [partId, testTemplates]
+    [partId, buildId, testTemplates, trackedItems]
   );
 
+  const buildOutputFields = useBuildOrderOutputFields({ build: build });
+
+  const addBuildOutput = useCreateApiFormModal({
+    url: apiUrl(ApiEndpoints.build_output_create, buildId),
+    title: t`Add Build Output`,
+    fields: buildOutputFields,
+    initialData: {
+      batch_code: build.batch,
+      location: build.destination ?? build.part_detail?.default_location
+    },
+    table: table
+  });
+
+  const [selectedOutputs, setSelectedOutputs] = useState<any[]>([]);
+
+  const completeBuildOutputsForm = useCompleteBuildOutputsForm({
+    build: build,
+    outputs: selectedOutputs,
+    onFormSuccess: () => {
+      table.refreshTable();
+    }
+  });
+
+  const scrapBuildOutputsForm = useScrapBuildOutputsForm({
+    build: build,
+    outputs: selectedOutputs,
+    onFormSuccess: () => {
+      table.refreshTable();
+    }
+  });
+
+  const cancelBuildOutputsForm = useCancelBuildOutputsForm({
+    build: build,
+    outputs: selectedOutputs,
+    onFormSuccess: () => {
+      table.refreshTable();
+    }
+  });
+
   const tableActions = useMemo(() => {
-    // TODO: Button to create new build output
-    // TODO: Button to complete output(s)
-    // TODO: Button to cancel output(s)
-    // TODO: Button to scrap output(s)
     return [
       <AddItemButton
         tooltip={t`Add Build Output`}
         hidden={!user.hasAddRole(UserRoles.build)}
+        onClick={addBuildOutput.open}
       />,
       <ActionButton
         tooltip={t`Complete selected outputs`}
         icon={<InvenTreeIcon icon="success" />}
         color="green"
         disabled={!table.hasSelectedRecords}
+        onClick={() => {
+          setSelectedOutputs(table.selectedRecords);
+          completeBuildOutputsForm.open();
+        }}
       />,
       <ActionButton
         tooltip={t`Scrap selected outputs`}
-        icon={<InvenTreeIcon icon="cancel" />}
-        color="red"
-        disabled={!table.hasSelectedRecords}
-      />,
-      <ActionButton
-        tooltip={t`Cancel selected outputs`}
         icon={<InvenTreeIcon icon="delete" />}
         color="red"
         disabled={!table.hasSelectedRecords}
+        onClick={() => {
+          setSelectedOutputs(table.selectedRecords);
+          scrapBuildOutputsForm.open();
+        }}
+      />,
+      <ActionButton
+        tooltip={t`Cancel selected outputs`}
+        icon={<InvenTreeIcon icon="cancel" />}
+        color="red"
+        disabled={!table.hasSelectedRecords}
+        onClick={() => {
+          setSelectedOutputs(table.selectedRecords);
+          cancelBuildOutputsForm.open();
+        }}
       />
     ];
-  }, [user, partId, buildId, table.hasSelectedRecords]);
+  }, [user, table.selectedRecords, table.hasSelectedRecords]);
 
   const rowActions = useCallback(
-    (record: any) => {
-      let actions: RowAction[] = [
+    (record: any): RowAction[] => {
+      return [
         {
           title: t`Allocate`,
           tooltip: t`Allocate stock to build output`,
           color: 'blue',
-          icon: <InvenTreeIcon icon="plus" />
+          icon: <InvenTreeIcon icon="plus" />,
+          onClick: notYetImplemented
         },
         {
           title: t`Deallocate`,
           tooltip: t`Deallocate stock from build output`,
           color: 'red',
-          icon: <InvenTreeIcon icon="minus" />
+          icon: <InvenTreeIcon icon="minus" />,
+          onClick: notYetImplemented
         },
         {
           title: t`Complete`,
           tooltip: t`Complete build output`,
           color: 'green',
-          icon: <InvenTreeIcon icon="success" />
+          icon: <InvenTreeIcon icon="success" />,
+          onClick: () => {
+            setSelectedOutputs([record]);
+            completeBuildOutputsForm.open();
+          }
         },
         {
           title: t`Scrap`,
           tooltip: t`Scrap build output`,
+          icon: <InvenTreeIcon icon="delete" />,
           color: 'red',
-          icon: <InvenTreeIcon icon="cancel" />
+          onClick: () => {
+            setSelectedOutputs([record]);
+            scrapBuildOutputsForm.open();
+          }
         },
         {
-          title: t`Delete`,
-          tooltip: t`Delete build output`,
+          title: t`Cancel`,
+          tooltip: t`Cancel build output`,
+          icon: <InvenTreeIcon icon="cancel" />,
           color: 'red',
-          icon: <InvenTreeIcon icon="delete" />
+          onClick: () => {
+            setSelectedOutputs([record]);
+            cancelBuildOutputsForm.open();
+          }
         }
       ];
-
-      return actions;
     },
-    [user, partId, buildId]
+    [user, partId]
   );
 
   const tableColumns: TableColumn[] = useMemo(() => {
@@ -194,10 +318,10 @@ export default function BuildOutputTable({
           }
 
           return (
-            <Group position="left" noWrap>
+            <Group justify="left" wrap="nowrap">
               <Text>{text}</Text>
               {record.batch && (
-                <Text italic size="sm">
+                <Text style={{ fontStyle: 'italic' }} size="sm">
                   {t`Batch`}: {record.batch}
                 </Text>
               )}
@@ -212,10 +336,16 @@ export default function BuildOutputTable({
         accessor: 'allocations',
         sortable: false,
         switchable: false,
-        title: t`Allocated Items`,
+        hidden: !hasTrackedItems,
+        title: t`Allocated Lines`,
         render: (record: any) => {
-          // TODO: Implement this!
-          return '-';
+          return (
+            <ProgressBar
+              progressLabel
+              value={record.fullyAllocated ?? 0}
+              maximum={trackedItems?.length ?? 0}
+            />
+          );
         }
       },
       {
@@ -229,7 +359,7 @@ export default function BuildOutputTable({
             record.results?.map((result: TestResultOverview) => {
               return (
                 result && (
-                  <Group position="left" key={result.name} noWrap>
+                  <Group justify="left" key={result.name} wrap="nowrap">
                     {result.result ? (
                       <IconCircleCheck color="green" />
                     ) : (
@@ -257,10 +387,21 @@ export default function BuildOutputTable({
         }
       }
     ];
-  }, [buildId, partId]);
+  }, [
+    buildId,
+    partId,
+    hasRequiredTests,
+    hasTrackedItems,
+    testTemplates,
+    trackedItems
+  ]);
 
   return (
     <>
+      {addBuildOutput.modal}
+      {completeBuildOutputsForm.modal}
+      {scrapBuildOutputsForm.modal}
+      {cancelBuildOutputsForm.modal}
       <InvenTreeTable
         tableState={table}
         url={apiUrl(ApiEndpoints.stock_item_list)}

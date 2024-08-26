@@ -73,13 +73,16 @@ src="{% static 'img/blank_image.png' %}"
     </button>
     <ul class='dropdown-menu' role='menu'>
         <li><a class='dropdown-item' href='#' id='edit-order'><span class='fas fa-edit icon-green'></span> {% trans "Edit order" %}</a></li>
-        {% if order.is_open %}
+        {% if order.can_hold %}
+        <li><a class='dropdown-item' href='#' id='hold-order'><span class='fas fa-hand-paper icon-yellow'></span> {% trans "Hold order" %}</a></li>
+        {% endif %}
+        {% if order.can_cancel %}
         <li><a class='dropdown-item' href='#' id='cancel-order'><span class='fas fa-times-circle icon-red'></span> {% trans "Cancel order" %}</a></li>
         {% endif %}
     </ul>
 </div>
 <div class='btn-group' role='group'>
-    {% if order.is_pending %}
+    {% if order.status == SalesOrderStatus.PENDING or order.status == SalesOrderStatus.ON_HOLD %}
     <button type='button' class='btn btn-primary' id='issue-order' title='{% trans "Issue Order" %}'>
         <span class='fas fa-paper-plane'></span> {% trans "Issue Order" %}
     </button>
@@ -89,6 +92,10 @@ src="{% static 'img/blank_image.png' %}"
         <span class='fas fa-truck'></span> {% trans "Ship Items" %}
     </button>
     {% endif %}
+    <button type='button' class='btn btn-success' id='ship-order' title='{% trans "Mark As Shipped" %}'>
+        <span class='fas fa-check-circle'></span> {% trans "Mark As Shipped" %}
+    </button>
+    {% elif order.status == SalesOrderStatus.SHIPPED %}
     <button type='button' class='btn btn-success' id='complete-order' title='{% trans "Complete Sales Order" %}'>
         <span class='fas fa-check-circle'></span> {% trans "Complete Order" %}
     </button>
@@ -117,7 +124,7 @@ src="{% static 'img/blank_image.png' %}"
         <td><span class='fas fa-info'></span></td>
         <td>{% trans "Order Status" %}</td>
         <td>
-            {% status_label 'sales_order' order.status %}
+            {% display_status_label 'sales_order' order.status_custom_key order.status %}
             {% if order.is_overdue %}
             <span class='badge rounded-pill bg-danger'>{% trans "Overdue" %}</span>
             {% endif %}
@@ -276,9 +283,33 @@ $('#issue-order').click(function() {
     );
 });
 
+{% if order.can_cancel %}
 $("#cancel-order").click(function() {
 
     cancelSalesOrder(
+        {{ order.pk }},
+        {
+            reload: true,
+        }
+    );
+});
+{% endif %}
+
+{% if order.can_hold %}
+$('#hold-order').click(function() {
+    holdOrder(
+        '{% url "api-so-hold" order.pk %}',
+        {
+            onSuccess: function() {
+                window.location.reload();
+            }
+        }
+    );
+});
+{% endif %}
+
+$("#ship-order").click(function() {
+    shipSalesOrder(
         {{ order.pk }},
         {
             reload: true,
@@ -297,11 +328,7 @@ $("#complete-order").click(function() {
 
 {% if report_enabled %}
 $('#print-order-report').click(function() {
-    printReports({
-        items: [{{ order.pk }}],
-        key: 'order',
-        url: '{% url "api-so-report-list" %}',
-    });
+    printReports('salesorder', [{{ order.pk }}]);
 });
 {% endif %}
 
@@ -310,7 +337,7 @@ $('#print-order-report').click(function() {
 $('#show-qr-code').click(function() {
     showQRDialog(
         '{% trans "Sales Order QR Code" escape %}',
-        '{"salesorder": {{ order.pk }} }'
+        '{{ order.barcode }}'
     );
 });
 
