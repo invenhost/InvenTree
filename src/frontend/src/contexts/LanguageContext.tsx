@@ -17,7 +17,6 @@ export const defaultLocale = 'en';
  */
 export const getSupportedLanguages = (): Record<string, string> => {
   return {
-    ar: t`Arabic`,
     bg: t`Bulgarian`,
     cs: t`Czech`,
     da: t`Danish`,
@@ -25,8 +24,7 @@ export const getSupportedLanguages = (): Record<string, string> => {
     el: t`Greek`,
     en: t`English`,
     es: t`Spanish`,
-    es_MX: t`Spanish (Mexican)`,
-    et: t`Estonian`,
+    'es-mx': t`Spanish (Mexican)`,
     fa: t`Farsi / Persian`,
     fi: t`Finnish`,
     fr: t`French`,
@@ -41,18 +39,16 @@ export const getSupportedLanguages = (): Record<string, string> => {
     no: t`Norwegian`,
     pl: t`Polish`,
     pt: t`Portuguese`,
-    pt_BR: t`Portuguese (Brazilian)`,
-    ro: t`Romanian`,
+    'pt-br': t`Portuguese (Brazilian)`,
     ru: t`Russian`,
     sk: t`Slovak`,
     sl: t`Slovenian`,
     sv: t`Swedish`,
     th: t`Thai`,
     tr: t`Turkish`,
-    uk: t`Ukrainian`,
     vi: t`Vietnamese`,
-    zh_Hans: t`Chinese (Simplified)`,
-    zh_Hant: t`Chinese (Traditional)`
+    'zh-hans': t`Chinese (Simplified)`,
+    'zh-hant': t`Chinese (Traditional)`
   };
 };
 
@@ -96,17 +92,8 @@ export function LanguageContext({ children }: { children: JSX.Element }) {
           locales.push('en-us');
         }
 
-        // Ensure that the locales are properly formatted
-        let new_locales = locales
-          .map((locale) => locale?.replaceAll('_', '-').toLowerCase())
-          .join(', ');
-
-        if (new_locales == api.defaults.headers.common['Accept-Language']) {
-          return;
-        }
-
         // Update default Accept-Language headers
-        api.defaults.headers.common['Accept-Language'] = new_locales;
+        api.defaults.headers.common['Accept-Language'] = locales.join(', ');
 
         // Reload server state (and refresh status codes)
         fetchGlobalStates();
@@ -116,7 +103,7 @@ export function LanguageContext({ children }: { children: JSX.Element }) {
       })
       /* istanbul ignore next */
       .catch((err) => {
-        console.error('ERR: Failed loading translations', err);
+        console.error('Failed loading translations', err);
         if (isMounted.current) setLoadedState('error');
       });
 

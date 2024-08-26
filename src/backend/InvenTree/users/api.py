@@ -3,28 +3,20 @@
 import datetime
 import logging
 
-from django.contrib.auth import authenticate, get_user, login, logout
+from django.contrib.auth import get_user, login
 from django.contrib.auth.models import Group, User
-from django.http.response import HttpResponse
-from django.shortcuts import redirect
-from django.urls import include, path, re_path, reverse
+from django.urls import include, path, re_path
 from django.views.generic.base import RedirectView
 
-from allauth.account import app_settings
-from allauth.account.adapter import get_adapter
-from allauth_2fa.utils import user_has_valid_totp_device
 from dj_rest_auth.views import LoginView, LogoutView
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import exceptions, permissions
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.decorators import authentication_classes
-from rest_framework.generics import DestroyAPIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 import InvenTree.helpers
-from common.models import InvenTreeSetting
 from InvenTree.filters import SEARCH_ORDER_FILTER
 from InvenTree.mixins import (
     ListAPI,
@@ -35,13 +27,8 @@ from InvenTree.mixins import (
 )
 from InvenTree.serializers import ExendedUserSerializer, UserCreateSerializer
 from InvenTree.settings import FRONTEND_URL_BASE
-from users.models import ApiToken, Owner
-from users.serializers import (
-    ApiTokenSerializer,
-    GroupSerializer,
-    OwnerSerializer,
-    RoleSerializer,
-)
+from users.models import ApiToken, Owner, RuleSet, check_user_role
+from users.serializers import GroupSerializer, OwnerSerializer
 
 logger = logging.getLogger('inventree')
 
@@ -119,15 +106,44 @@ class OwnerDetail(RetrieveAPI):
     serializer_class = OwnerSerializer
 
 
-class RoleDetails(RetrieveAPI):
-    """API endpoint which lists the available role permissions for the current user."""
+class RoleDetails(APIView):
+    """API endpoint which lists the available role permissions for the current user.
+
+    (Requires authentication)
+    """
 
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = RoleSerializer
+    serializer_class = None
 
-    def get_object(self):
-        """Overwritten to always return current user."""
-        return self.request.user
+    def get(self, request, *args, **kwargs):
+        """Return the list of roles / permissions available to the current user."""
+        user = request.user
+
+        roles = {}
+
+        for ruleset in RuleSet.RULESET_CHOICES:
+            role, _text = ruleset
+
+            permissions = []
+
+            for permission in RuleSet.RULESET_PERMISSIONS:
+                if check_user_role(user, role, permission):
+                    permissions.append(permission)
+
+            if len(permissions) > 0:
+                roles[role] = permissions
+            else:
+                roles[role] = None  # pragma: no cover
+
+        data = {
+            'user': user.pk,
+            'username': user.username,
+            'roles': roles,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+        }
+
+        return Response(data)
 
 
 class UserDetail(RetrieveUpdateDestroyAPI):
@@ -169,24 +185,7 @@ class UserList(ListCreateAPI):
     filterset_fields = ['is_staff', 'is_active', 'is_superuser']
 
 
-class GroupMixin:
-    """Mixin for Group API endpoints to add permissions filter."""
-
-    def get_serializer(self, *args, **kwargs):
-        """Return serializer instance for this endpoint."""
-        # Do we wish to include extra detail?
-        try:
-            params = self.request.query_params
-            kwargs['permission_detail'] = InvenTree.helpers.str2bool(
-                params.get('permission_detail', None)
-            )
-        except AttributeError:
-            pass
-        kwargs['context'] = self.get_serializer_context()
-        return self.serializer_class(*args, **kwargs)
-
-
-class GroupDetail(GroupMixin, RetrieveUpdateDestroyAPI):
+class GroupDetail(RetrieveUpdateDestroyAPI):
     """Detail endpoint for a particular auth group."""
 
     queryset = Group.objects.all()
@@ -194,7 +193,7 @@ class GroupDetail(GroupMixin, RetrieveUpdateDestroyAPI):
     permission_classes = [permissions.IsAuthenticated]
 
 
-class GroupList(GroupMixin, ListCreateAPI):
+class GroupList(ListCreateAPI):
     """List endpoint for all auth groups."""
 
     queryset = Group.objects.all()
@@ -217,50 +216,7 @@ class GroupList(GroupMixin, ListCreateAPI):
 class Login(LoginView):
     """API view for logging in via API."""
 
-    def post(self, request, *args, **kwargs):
-        """API view for logging in via API."""
-        _data = request.data.copy()
-        _data.update(request.POST.copy())
-
-        if not _data.get('mfa', None):
-            return super().post(request, *args, **kwargs)
-
-        # Check if login credentials valid
-        user = authenticate(
-            request, username=_data.get('username'), password=_data.get('password')
-        )
-        if user is None:
-            return HttpResponse(status=401)
-
-            # Check if user has mfa set up
-        if not user_has_valid_totp_device(user):
-            return super().post(request, *args, **kwargs)
-
-            # Stage login and redirect to 2fa
-        request.session['allauth_2fa_user_id'] = str(user.id)
-        request.session['allauth_2fa_login'] = {
-            'email_verification': app_settings.EMAIL_VERIFICATION,
-            'signal_kwargs': None,
-            'signup': False,
-            'email': None,
-            'redirect_url': reverse('platform'),
-        }
-        return redirect(reverse('two-factor-authenticate'))
-
-    def process_login(self):
-        """Process the login request, ensure that MFA is enforced if required."""
-        # Normal login process
-        ret = super().process_login()
-        user = self.request.user
-        adapter = get_adapter(self.request)
-
-        # User requires 2FA or MFA is enforced globally - no logins via API
-        if adapter.has_2fa_enabled(user) or InvenTreeSetting.get_setting(
-            'LOGIN_ENFORCE_MFA'
-        ):
-            logout(self.request)
-            raise exceptions.PermissionDenied('MFA required for this user')
-        return ret
+    ...
 
 
 @extend_schema_view(
@@ -287,7 +243,7 @@ class Logout(LogoutView):
                 try:
                     token = ApiToken.objects.get(key=token_key, user=request.user)
                     token.delete()
-                except ApiToken.DoesNotExist:  # pragma: no cover
+                except ApiToken.DoesNotExist:
                     pass
 
         return super().logout(request)
@@ -349,22 +305,6 @@ class GetAuthToken(APIView):
             raise exceptions.NotAuthenticated()
 
 
-class TokenListView(DestroyAPIView, ListAPI):
-    """List of registered tokens for current users."""
-
-    permission_classes = (IsAuthenticated,)
-    serializer_class = ApiTokenSerializer
-
-    def get_queryset(self):
-        """Only return data for current user."""
-        return ApiToken.objects.filter(user=self.request.user)
-
-    def perform_destroy(self, instance):
-        """Revoke token."""
-        instance.revoked = True
-        instance.save()
-
-
 class LoginRedirect(RedirectView):
     """Redirect to the correct starting page after backend login."""
 
@@ -379,13 +319,6 @@ class LoginRedirect(RedirectView):
 user_urls = [
     path('roles/', RoleDetails.as_view(), name='api-user-roles'),
     path('token/', GetAuthToken.as_view(), name='api-token'),
-    path(
-        'tokens/',
-        include([
-            path('<int:pk>/', TokenListView.as_view(), name='api-token-detail'),
-            path('', TokenListView.as_view(), name='api-token-list'),
-        ]),
-    ),
     path('me/', MeUserDetail.as_view(), name='api-user-me'),
     path(
         'owner/',

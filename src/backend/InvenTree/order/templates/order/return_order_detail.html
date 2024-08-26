@@ -175,8 +175,6 @@ onPanelLoad('order-notes', function() {
         'order-notes',
         '{% url "api-return-order-detail" order.pk %}',
         {
-            model_type: 'returnorder',
-            model_id: {{ order.pk }},
             {% if roles.purchase_order.change %}
             editable: true,
             {% else %}
@@ -189,7 +187,17 @@ onPanelLoad('order-notes', function() {
 // Callback function when the 'attachments' panel is loaded
 onPanelLoad('order-attachments', function() {
 
-    loadAttachmentTable('returnorder', {{ order.pk }});
+    loadAttachmentTable('{% url "api-return-order-attachment-list" %}', {
+        filters: {
+            order: {{ order.pk }},
+        },
+        fields: {
+            order: {
+                value: {{ order.pk }},
+                hidden: true,
+            },
+        }
+    });
 });
 
 enableSidebar('returnorder');

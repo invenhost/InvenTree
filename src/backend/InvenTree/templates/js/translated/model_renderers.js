@@ -2,7 +2,6 @@
 
 /* globals
     blankImage,
-    getApiIconClass,
     partStockLabel,
     renderLink,
     select2Thumbnail
@@ -93,12 +92,6 @@ function getModelRenderer(model) {
         return renderGroup;
     case 'projectcode':
         return renderProjectCode;
-    case 'labeltemplate':
-        return renderLabelTemplate;
-    case 'reporttemplate':
-        return renderReportTemplate;
-    case 'pluginconfig':
-        return renderPluginConfig;
     default:
         // Un-handled model type
         console.error(`Rendering not implemented for model '${model}'`);
@@ -275,7 +268,7 @@ function renderStockLocation(data, parameters={}) {
 function renderStockLocationType(data, parameters={}) {
     return renderModel(
         {
-            text: `<span class="${getApiIconClass(data.icon)} me-1"></span>${data.name}`,
+            text: `<span class="${data.icon} me-1"></span>${data.name}`,
         },
         parameters
     );
@@ -543,45 +536,6 @@ function renderProjectCode(data, parameters={}) {
         {
             text: data.code,
             textSecondary: data.description,
-        },
-        parameters
-    );
-}
-
-
-// Renderer for "LabelTemplate" model
-function renderLabelTemplate(data, parameters={}) {
-
-    return renderModel(
-        {
-            text: data.name,
-            textSecondary: data.description,
-        },
-        parameters
-    );
-}
-
-
-// Renderer for "ReportTemplate" model
-function renderReportTemplate(data, parameters={}) {
-
-    return renderModel(
-        {
-            text: data.name,
-            textSecondary: data.description,
-        },
-        parameters
-    );
-}
-
-
-// Renderer for "PluginConfig" model
-function renderPluginConfig(data, parameters={}) {
-
-    return renderModel(
-        {
-            text: data.name,
-            textSecondary: data.meta?.description,
         },
         parameters
     );

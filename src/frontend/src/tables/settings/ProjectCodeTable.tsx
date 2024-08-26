@@ -33,7 +33,7 @@ export default function ProjectCodeTable() {
         sortable: true
       },
       DescriptionColumn({}),
-      ResponsibleColumn({})
+      ResponsibleColumn()
     ];
   }, []);
 
@@ -41,7 +41,7 @@ export default function ProjectCodeTable() {
     url: ApiEndpoints.project_code_list,
     title: t`Add Project Code`,
     fields: projectCodeFields(),
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const [selectedProjectCode, setSelectedProjectCode] = useState<
@@ -53,14 +53,14 @@ export default function ProjectCodeTable() {
     pk: selectedProjectCode,
     title: t`Edit Project Code`,
     fields: projectCodeFields(),
-    table: table
+    onFormSuccess: (record: any) => table.updateRecord(record)
   });
 
   const deleteProjectCode = useDeleteApiFormModal({
     url: ApiEndpoints.project_code_list,
     pk: selectedProjectCode,
     title: t`Delete Project Code`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const rowActions = useCallback(
@@ -86,12 +86,16 @@ export default function ProjectCodeTable() {
   );
 
   const tableActions = useMemo(() => {
-    return [
+    let actions = [];
+
+    actions.push(
       <AddItemButton
         onClick={() => newProjectCode.open()}
         tooltip={t`Add project code`}
       />
-    ];
+    );
+
+    return actions;
   }, []);
 
   return (
@@ -105,8 +109,7 @@ export default function ProjectCodeTable() {
         columns={columns}
         props={{
           rowActions: rowActions,
-          tableActions: tableActions,
-          enableDownload: true
+          tableActions: tableActions
         }}
       />
     </>

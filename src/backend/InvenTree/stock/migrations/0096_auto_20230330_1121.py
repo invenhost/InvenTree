@@ -15,7 +15,7 @@ def update_stock_history(apps, schema_editor):
     - Add the appropriate history!
     """
 
-    from stock.status_codes import StockHistoryCode
+    from InvenTree.status_codes import StockHistoryCode
 
     StockItem = apps.get_model('stock', 'stockitem')
     StockItemTracking = apps.get_model('stock', 'stockitemtracking')

@@ -1,9 +1,10 @@
-import { t } from '@lingui/macro';
+import { Trans, t } from '@lingui/macro';
+import { Container, Text, Title } from '@mantine/core';
 import { useDocumentTitle } from '@mantine/hooks';
 import { useEffect, useState } from 'react';
 import { useRouteError } from 'react-router-dom';
 
-import GenericErrorPage from '../components/errors/GenericErrorPage';
+import { LanguageContext } from '../contexts/LanguageContext';
 import { ErrorResponse } from '../states/states';
 
 export default function ErrorPage() {
@@ -18,9 +19,18 @@ export default function ErrorPage() {
   }, [error]);
 
   return (
-    <GenericErrorPage
-      title={title}
-      message={t`An unexpected error has occurred`}
-    />
+    <LanguageContext>
+      <Container>
+        <Title>
+          <Trans>Error</Trans>
+        </Title>
+        <Text>
+          <Trans>Sorry, an unexpected error has occurred.</Trans>
+        </Text>
+        <Text>
+          <i>{error.statusText || error.message}</i>
+        </Text>
+      </Container>
+    </LanguageContext>
   );
 }

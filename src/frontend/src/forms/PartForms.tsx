@@ -1,9 +1,8 @@
 import { t } from '@lingui/macro';
 import { IconPackages } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { ApiFormFieldSet } from '../components/forms/fields/ApiFormField';
-import { useGlobalSettingsState } from '../states/SettingsState';
 
 /**
  * Construct a set of fields for creating / editing a Part instance
@@ -13,8 +12,6 @@ export function usePartFields({
 }: {
   create?: boolean;
 }): ApiFormFieldSet {
-  const settings = useGlobalSettingsState();
-
   return useMemo(() => {
     const fields: ApiFormFieldSet = {
       category: {
@@ -24,19 +21,9 @@ export function usePartFields({
       },
       name: {},
       IPN: {},
-      description: {},
       revision: {},
-      revision_of: {
-        filters: {
-          is_revision: false,
-          is_template: false
-        }
-      },
-      variant_of: {
-        filters: {
-          is_template: true
-        }
-      },
+      description: {},
+      variant_of: {},
       keywords: {},
       units: {},
       link: {},
@@ -55,12 +42,10 @@ export function usePartFields({
       component: {},
       assembly: {},
       is_template: {},
-      testable: {},
       trackable: {},
       purchaseable: {},
       salable: {},
       virtual: {},
-      locked: {},
       active: {}
     };
 
@@ -71,9 +56,7 @@ export function usePartFields({
       fields.initial_stock = {
         icon: <IconPackages />,
         children: {
-          quantity: {
-            value: 0
-          },
+          quantity: {},
           location: {}
         }
       };
@@ -96,29 +79,22 @@ export function usePartFields({
       };
     }
 
-    if (settings.isSet('PART_REVISION_ASSEMBLY_ONLY')) {
-      fields.revision_of.filters['assembly'] = true;
-    }
+    // TODO: pop 'expiry' field if expiry not enabled
+    delete fields['default_expiry'];
 
-    // Pop 'revision' field if PART_ENABLE_REVISION is False
-    if (!settings.isSet('PART_ENABLE_REVISION')) {
-      delete fields['revision'];
-      delete fields['revision_of'];
-    }
+    // TODO: pop 'revision' field if PART_ENABLE_REVISION is False
+    delete fields['revision'];
 
-    // Pop 'expiry' field if expiry not enabled
-    if (!settings.isSet('STOCK_ENABLE_EXPIRY')) {
-      delete fields['default_expiry'];
-    }
+    // TODO: handle part duplications
 
     return fields;
-  }, [create, settings]);
+  }, [create]);
 }
 
 /**
  * Construct a set of fields for creating / editing a PartCategory instance
  */
-export function partCategoryFields(): ApiFormFieldSet {
+export function partCategoryFields({}: {}): ApiFormFieldSet {
   let fields: ApiFormFieldSet = {
     parent: {
       description: t`Parent part category`,
@@ -133,72 +109,8 @@ export function partCategoryFields(): ApiFormFieldSet {
     },
     default_keywords: {},
     structural: {},
-    icon: {
-      field_type: 'icon'
-    }
+    icon: {}
   };
 
   return fields;
-}
-
-export function usePartParameterFields({
-  editTemplate
-}: {
-  editTemplate?: boolean;
-}): ApiFormFieldSet {
-  // Valid field choices
-  const [choices, setChoices] = useState<any[]>([]);
-
-  // Field type for "data" input
-  const [fieldType, setFieldType] = useState<'string' | 'boolean' | 'choice'>(
-    'string'
-  );
-
-  return useMemo(() => {
-    return {
-      part: {
-        disabled: true
-      },
-      template: {
-        disabled: editTemplate == false,
-        onValueChange: (value: any, record: any) => {
-          // Adjust the type of the "data" field based on the selected template
-          if (record?.checkbox) {
-            // This is a "checkbox" field
-            setChoices([]);
-            setFieldType('boolean');
-          } else if (record?.choices) {
-            let _choices: string[] = record.choices.split(',');
-
-            if (_choices.length > 0) {
-              setChoices(
-                _choices.map((choice) => {
-                  return {
-                    label: choice.trim(),
-                    value: choice.trim()
-                  };
-                })
-              );
-              setFieldType('choice');
-            } else {
-              setChoices([]);
-              setFieldType('string');
-            }
-          } else {
-            setChoices([]);
-            setFieldType('string');
-          }
-        }
-      },
-      data: {
-        type: fieldType,
-        field_type: fieldType,
-        choices: fieldType === 'choice' ? choices : undefined,
-        adjustValue: (value: any) => {
-          // Coerce boolean value into a string (required by backend)
-          return value.toString();
-        }
-      }
-    };
-  }, [editTemplate, fieldType, choices]);
 }

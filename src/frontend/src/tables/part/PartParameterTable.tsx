@@ -1,15 +1,12 @@
 import { t } from '@lingui/macro';
-import { Alert, Stack, Text } from '@mantine/core';
-import { IconLock } from '@tabler/icons-react';
+import { Text } from '@mantine/core';
 import { useCallback, useMemo, useState } from 'react';
 
 import { AddItemButton } from '../../components/buttons/AddItemButton';
 import { YesNoButton } from '../../components/buttons/YesNoButton';
 import { ApiFormFieldSet } from '../../components/forms/fields/ApiFormField';
-import { formatDecimal } from '../../defaults/formatters';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { UserRoles } from '../../enums/Roles';
-import { usePartParameterFields } from '../../forms/PartForms';
 import {
   useCreateApiFormModal,
   useDeleteApiFormModal,
@@ -21,19 +18,13 @@ import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { DescriptionColumn, PartColumn } from '../ColumnRenderers';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowDeleteAction, RowEditAction } from '../RowActions';
+import { RowDeleteAction, RowEditAction } from '../RowActions';
 import { TableHoverCard } from '../TableHoverCard';
 
 /**
  * Construct a table listing parameters for a given part
  */
-export function PartParameterTable({
-  partId,
-  partLocked
-}: {
-  partId: any;
-  partLocked?: boolean;
-}) {
+export function PartParameterTable({ partId }: { partId: any }) {
   const table = useTable('part-parameters');
 
   const user = useUserState();
@@ -58,11 +49,7 @@ export function PartParameterTable({
         render: (record) => {
           let variant = String(partId) != String(record.part);
 
-          return (
-            <Text style={{ fontStyle: variant ? 'italic' : 'inherit' }}>
-              {record.template_detail?.name}
-            </Text>
-          );
+          return <Text italic={variant}>{record.template_detail?.name}</Text>;
         }
       },
       DescriptionColumn({
@@ -86,8 +73,7 @@ export function PartParameterTable({
             record.data_numeric &&
             record.data_numeric != record.data
           ) {
-            const numeric = formatDecimal(record.data_numeric, { digits: 15 });
-            extra.push(`${numeric} [${template.units}]`);
+            extra.push(`${record.data_numeric} [${template.units}]`);
           }
 
           return (
@@ -107,17 +93,25 @@ export function PartParameterTable({
     ];
   }, [partId]);
 
-  const partParameterFields: ApiFormFieldSet = usePartParameterFields({});
+  const partParameterFields: ApiFormFieldSet = useMemo(() => {
+    return {
+      part: {
+        disabled: true
+      },
+      template: {},
+      data: {}
+    };
+  }, []);
 
   const newParameter = useCreateApiFormModal({
     url: ApiEndpoints.part_parameter_list,
     title: t`New Part Parameter`,
-    fields: useMemo(() => ({ ...partParameterFields }), [partParameterFields]),
+    fields: partParameterFields,
     focus: 'template',
     initialData: {
       part: partId
     },
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const [selectedParameter, setSelectedParameter] = useState<
@@ -128,21 +122,20 @@ export function PartParameterTable({
     url: ApiEndpoints.part_parameter_list,
     pk: selectedParameter,
     title: t`Edit Part Parameter`,
-    focus: 'data',
-    fields: useMemo(() => ({ ...partParameterFields }), [partParameterFields]),
-    table: table
+    fields: partParameterFields,
+    onFormSuccess: table.refreshTable
   });
 
   const deleteParameter = useDeleteApiFormModal({
     url: ApiEndpoints.part_parameter_list,
     pk: selectedParameter,
     title: t`Delete Part Parameter`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   // Callback for row actions
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       // Actions not allowed for "variant" rows
       if (String(partId) != String(record.part)) {
         return [];
@@ -151,7 +144,7 @@ export function PartParameterTable({
       return [
         RowEditAction({
           tooltip: t`Edit Part Parameter`,
-          hidden: partLocked || !user.hasChangeRole(UserRoles.part),
+          hidden: !user.hasChangeRole(UserRoles.part),
           onClick: () => {
             setSelectedParameter(record.pk);
             editParameter.open();
@@ -159,7 +152,7 @@ export function PartParameterTable({
         }),
         RowDeleteAction({
           tooltip: t`Delete Part Parameter`,
-          hidden: partLocked || !user.hasDeleteRole(UserRoles.part),
+          hidden: !user.hasDeleteRole(UserRoles.part),
           onClick: () => {
             setSelectedParameter(record.pk);
             deleteParameter.open();
@@ -167,60 +160,46 @@ export function PartParameterTable({
         })
       ];
     },
-    [partId, partLocked, user]
+    [partId, user]
   );
 
   // Custom table actions
   const tableActions = useMemo(() => {
     return [
       <AddItemButton
-        key="add-parameter"
-        hidden={partLocked || !user.hasAddRole(UserRoles.part)}
+        hidden={!user.hasAddRole(UserRoles.part)}
         tooltip={t`Add parameter`}
         onClick={() => newParameter.open()}
       />
     ];
-  }, [partLocked, user]);
+  }, [user]);
 
   return (
     <>
       {newParameter.modal}
       {editParameter.modal}
       {deleteParameter.modal}
-      <Stack gap="xs">
-        {partLocked && (
-          <Alert
-            title={t`Part is Locked`}
-            color="orange"
-            icon={<IconLock />}
-            p="xs"
-          >
-            <Text>{t`Part parameters cannot be edited, as the part is locked`}</Text>
-          </Alert>
-        )}
-        <InvenTreeTable
-          url={apiUrl(ApiEndpoints.part_parameter_list)}
-          tableState={table}
-          columns={tableColumns}
-          props={{
-            rowActions: rowActions,
-            enableDownload: true,
-            tableActions: tableActions,
-            tableFilters: [
-              {
-                name: 'include_variants',
-                label: t`Include Variants`,
-                type: 'boolean'
-              }
-            ],
-            params: {
-              part: partId,
-              template_detail: true,
-              part_detail: true
+      <InvenTreeTable
+        url={apiUrl(ApiEndpoints.part_parameter_list)}
+        tableState={table}
+        columns={tableColumns}
+        props={{
+          rowActions: rowActions,
+          tableActions: tableActions,
+          tableFilters: [
+            {
+              name: 'include_variants',
+              label: t`Include Variants`,
+              type: 'boolean'
             }
-          }}
-        />
-      </Stack>
+          ],
+          params: {
+            part: partId,
+            template_detail: true,
+            part_detail: true
+          }
+        }}
+      />
     </>
   );
 }

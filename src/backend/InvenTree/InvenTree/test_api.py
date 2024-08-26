@@ -62,7 +62,6 @@ class APITests(InvenTreeAPITestCase):
     """Tests for the InvenTree API."""
 
     fixtures = ['location', 'category', 'part', 'stock']
-    roles = ['part.view']
     token = None
     auto_login = False
 
@@ -92,7 +91,9 @@ class APITests(InvenTreeAPITestCase):
         """Test token resolve endpoint does not work without basic auth."""
         # Test token endpoint without basic auth
         url = reverse('api-token')
-        self.get(url, expected_code=401)
+        response = self.client.get(url, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIsNone(self.token)
 
     def test_token_success(self):
@@ -104,7 +105,7 @@ class APITests(InvenTreeAPITestCase):
         """Test that we can read the 'info-view' endpoint."""
         url = reverse('api-inventree-info')
 
-        response = self.get(url)
+        response = self.client.get(url, format='json')
 
         data = response.json()
         self.assertIn('server', data)
@@ -124,14 +125,13 @@ class APITests(InvenTreeAPITestCase):
         self.group.rule_sets.all().delete()
         update_group_roles(self.group)
 
-        response = self.get(url, expected_code=401)
+        response = self.client.get(url, format='json')
 
         # Not logged in, so cannot access user role data
-        self.assertIn(response.status_code, [401, 403])
+        self.assertTrue(response.status_code in [401, 403])
 
         # Now log in!
         self.basicAuth()
-        self.assignRole('part.view')
 
         response = self.get(url)
 
@@ -147,17 +147,12 @@ class APITests(InvenTreeAPITestCase):
 
         role_names = roles.keys()
 
-        # By default, no permissions are provided
+        # By default, 'view' permissions are provided
         for rule in RuleSet.RULESET_NAMES:
             self.assertIn(rule, role_names)
 
-            if roles[rule] is None:
-                continue
+            self.assertIn('view', roles[rule])
 
-            if rule == 'part':
-                self.assertIn('view', roles[rule])
-            else:
-                self.assertNotIn('view', roles[rule])
             self.assertNotIn('add', roles[rule])
             self.assertNotIn('change', roles[rule])
             self.assertNotIn('delete', roles[rule])
@@ -302,7 +297,6 @@ class SearchTests(InvenTreeAPITestCase):
         'order',
         'sales_order',
     ]
-    roles = ['build.view', 'part.view']
 
     def test_empty(self):
         """Test empty request."""
@@ -332,19 +326,6 @@ class SearchTests(InvenTreeAPITestCase):
         self.assertNotIn('salesorder', response.data)
 
         # Search for orders
-        response = self.post(
-            reverse('api-search'),
-            {'search': '01', 'limit': 2, 'purchaseorder': {}, 'salesorder': {}},
-            expected_code=200,
-        )
-        self.assertEqual(
-            response.data['purchaseorder'],
-            {'error': 'User does not have permission to view this model'},
-        )
-
-        # Add permissions and try again
-        self.assignRole('purchase_order.view')
-        self.assignRole('sales_order.view')
         response = self.post(
             reverse('api-search'),
             {'search': '01', 'limit': 2, 'purchaseorder': {}, 'salesorder': {}},

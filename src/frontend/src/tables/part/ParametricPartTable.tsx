@@ -1,21 +1,17 @@
 import { t } from '@lingui/macro';
-import { Group } from '@mantine/core';
+import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
+import { IconEdit } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { ReactNode, useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useMemo, useState } from 'react';
 
 import { api } from '../../App';
 import { YesNoButton } from '../../components/buttons/YesNoButton';
 import { ApiFormFieldSet } from '../../components/forms/fields/ApiFormField';
-import { formatDecimal } from '../../defaults/formatters';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
-import { usePartParameterFields } from '../../forms/PartForms';
 import { cancelEvent } from '../../functions/events';
-import { navigateToLink } from '../../functions/navigation';
-import { getDetailUrl } from '../../functions/urls';
 import {
   useCreateApiFormModal,
   useEditApiFormModal
@@ -25,7 +21,6 @@ import { apiUrl } from '../../states/ApiState';
 import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { DescriptionColumn, PartColumn } from '../ColumnRenderers';
-import { TableFilter } from '../Filter';
 import { InvenTreeTable } from '../InvenTreeTable';
 import { TableHoverCard } from '../TableHoverCard';
 
@@ -33,32 +28,28 @@ import { TableHoverCard } from '../TableHoverCard';
 function ParameterCell({
   record,
   template,
-  canEdit
+  canEdit,
+  onEdit
 }: {
   record: any;
   template: any;
   canEdit: boolean;
+  onEdit: () => void;
 }) {
   const { hovered, ref } = useHover();
 
   // Find matching template parameter
-  const parameter = useMemo(() => {
-    return record.parameters?.find((p: any) => p.template == template.pk);
-  }, [record.parameters, template]);
+  let parameter = record.parameters?.find(
+    (p: any) => p.template == template.pk
+  );
 
   let extra: any[] = [];
 
-  // Format the value for display
-  const value: ReactNode = useMemo(() => {
-    let v: any = parameter?.data;
+  let value: any = parameter?.data;
 
-    // Handle boolean values
-    if (template?.checkbox && v != undefined) {
-      v = <YesNoButton value={parameter.data} />;
-    }
-
-    return v;
-  }, [parameter, template]);
+  if (template?.checkbox && value != undefined) {
+    value = <YesNoButton value={parameter.data} />;
+  }
 
   if (
     template.units &&
@@ -66,25 +57,33 @@ function ParameterCell({
     parameter.data_numeric &&
     parameter.data_numeric != parameter.data
   ) {
-    const numeric = formatDecimal(parameter.data_numeric, { digits: 15 });
-    extra.push(`${numeric} [${template.units}]`);
+    extra.push(`${parameter.data_numeric} [${template.units}]`);
   }
 
-  if (hovered && canEdit) {
-    extra.push(t`Click to edit`);
-  }
+  const handleClick = useCallback((event: any) => {
+    cancelEvent(event);
+    onEdit();
+  }, []);
 
   return (
     <div>
-      <Group grow ref={ref} justify="space-between">
-        <Group grow>
+      <Group grow ref={ref} position="apart">
+        <Group grow style={{ flex: 1 }}>
           <TableHoverCard
             value={value ?? '-'}
             extra={extra}
-            icon={hovered && canEdit ? 'edit' : 'info'}
-            title={template.name}
+            title={t`Internal Units`}
           />
         </Group>
+        {hovered && canEdit && (
+          <div style={{ flex: 0 }}>
+            <Tooltip label={t`Edit parameter`}>
+              <ActionIcon size="xs" onClick={handleClick}>
+                <IconEdit />
+              </ActionIcon>
+            </Tooltip>
+          </div>
+        )}
       </Group>
     </div>
   );
@@ -97,7 +96,6 @@ export default function ParametricPartTable({
 }) {
   const table = useTable('parametric-parts');
   const user = useUserState();
-  const navigate = useNavigate();
 
   const categoryParmeters = useQuery({
     queryKey: ['category-parameters', categoryId],
@@ -118,14 +116,22 @@ export default function ParametricPartTable({
   const [selectedTemplate, setSelectedTemplate] = useState<number>(0);
   const [selectedParameter, setSelectedParameter] = useState<number>(0);
 
-  const partParameterFields: ApiFormFieldSet = usePartParameterFields({
-    editTemplate: false
-  });
+  const partParameterFields: ApiFormFieldSet = useMemo(() => {
+    return {
+      part: {
+        disabled: true
+      },
+      template: {
+        disabled: true
+      },
+      data: {}
+    };
+  }, []);
 
   const addParameter = useCreateApiFormModal({
     url: ApiEndpoints.part_parameter_list,
     title: t`Add Part Parameter`,
-    fields: useMemo(() => ({ ...partParameterFields }), [partParameterFields]),
+    fields: partParameterFields,
     focus: 'data',
     onFormSuccess: (parameter: any) => {
       updateParameterRecord(selectedPart, parameter);
@@ -140,7 +146,7 @@ export default function ParametricPartTable({
     url: ApiEndpoints.part_parameter_list,
     title: t`Edit Part Parameter`,
     pk: selectedParameter,
-    fields: useMemo(() => ({ ...partParameterFields }), [partParameterFields]),
+    fields: partParameterFields,
     focus: 'data',
     onFormSuccess: (parameter: any) => {
       updateParameterRecord(selectedPart, parameter);
@@ -197,44 +203,25 @@ export default function ParametricPartTable({
             record={record}
             template={template}
             canEdit={user.hasChangeRole(UserRoles.part)}
+            onEdit={() => {
+              setSelectedTemplate(template.pk);
+              setSelectedPart(record.pk);
+              let parameter = record.parameters?.find(
+                (p: any) => p.template == template.pk
+              );
+
+              if (parameter) {
+                setSelectedParameter(parameter.pk);
+                editParameter.open();
+              } else {
+                addParameter.open();
+              }
+            }}
           />
         )
       };
     });
   }, [user, categoryParmeters.data]);
-
-  const onParameterClick = useCallback((template: number, part: any) => {
-    setSelectedTemplate(template);
-    setSelectedPart(part.pk);
-    let parameter = part.parameters?.find((p: any) => p.template == template);
-
-    if (parameter) {
-      setSelectedParameter(parameter.pk);
-      editParameter.open();
-    } else {
-      addParameter.open();
-    }
-  }, []);
-
-  const tableFilters: TableFilter[] = useMemo(() => {
-    return [
-      {
-        name: 'active',
-        label: t`Active`,
-        description: t`Show active parts`
-      },
-      {
-        name: 'locked',
-        label: t`Locked`,
-        description: t`Show locked parts`
-      },
-      {
-        name: 'assembly',
-        label: t`Assembly`,
-        description: t`Show assembly parts`
-      }
-    ];
-  }, []);
 
   const tableColumns: TableColumn[] = useMemo(() => {
     const partColumns: TableColumn[] = [
@@ -259,6 +246,35 @@ export default function ParametricPartTable({
     return [...partColumns, ...parameterColumns];
   }, [parameterColumns]);
 
+  // Callback when a parameter cell is clicked - either edit or add a new parameter
+  const handleCellClick = useCallback(
+    (record: any, column: any) => {
+      let template_id = column?.extra?.template;
+
+      if (!template_id) {
+        return;
+      }
+
+      setSelectedPart(record.pk);
+      setSelectedTemplate(template_id);
+
+      // Find the associated parameter
+      let parameter = record?.parameters?.find(
+        (p: any) => p.template == template_id
+      );
+
+      if (parameter) {
+        // Parameter exists - open edit dialog
+        setSelectedParameter(parameter.pk);
+        editParameter.open();
+      } else {
+        // Parameter does not exist - create it!
+        addParameter.open();
+      }
+    },
+    [user]
+  );
+
   return (
     <>
       {addParameter.modal}
@@ -269,28 +285,13 @@ export default function ParametricPartTable({
         columns={tableColumns}
         props={{
           enableDownload: false,
-          tableFilters: tableFilters,
           params: {
             category: categoryId,
             cascade: true,
             category_detail: true,
             parameters: true
           },
-          onCellClick: ({ event, record, index, column, columnIndex }) => {
-            cancelEvent(event);
-
-            // Is this a "parameter" cell?
-            if (column?.accessor?.toString()?.startsWith('parameter_')) {
-              const col = column as any;
-              onParameterClick(col.extra.template, record);
-            } else {
-              // Navigate through to the part detail page
-              if (record?.pk) {
-                const url = getDetailUrl(ModelType.part, record.pk);
-                navigateToLink(url, navigate, event);
-              }
-            }
-          }
+          modelType: ModelType.part
         }}
       />
     </>

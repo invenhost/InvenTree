@@ -1,48 +1,80 @@
 import { t } from '@lingui/macro';
-import { ActionIcon, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { Menu } from '@mantine/core';
 import { IconCopy, IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { ReactNode, useMemo, useState } from 'react';
 
 import { cancelEvent } from '../functions/events';
+import { notYetImplemented } from '../functions/notifications';
 
 // Type definition for a table row action
 export type RowAction = {
-  title?: string;
+  title: string;
   tooltip?: string;
   color?: string;
-  icon?: ReactNode;
-  onClick: () => void;
+  icon: ReactNode;
+  onClick?: () => void;
   hidden?: boolean;
   disabled?: boolean;
 };
 
 // Component for duplicating a row in a table
-export function RowDuplicateAction(props: RowAction): RowAction {
+export function RowDuplicateAction({
+  onClick,
+  tooltip,
+  hidden
+}: {
+  onClick?: () => void;
+  tooltip?: string;
+  hidden?: boolean;
+}): RowAction {
   return {
-    ...props,
     title: t`Duplicate`,
     color: 'green',
-    icon: <IconCopy />
+    tooltip: tooltip,
+    onClick: onClick,
+    icon: <IconCopy />,
+    hidden: hidden
   };
 }
 
 // Component for editing a row in a table
-export function RowEditAction(props: RowAction): RowAction {
+export function RowEditAction({
+  onClick,
+  tooltip,
+  hidden
+}: {
+  onClick?: () => void;
+  tooltip?: string;
+  hidden?: boolean;
+}): RowAction {
   return {
-    ...props,
     title: t`Edit`,
     color: 'blue',
-    icon: <IconEdit />
+    tooltip: tooltip,
+    onClick: onClick,
+    icon: <IconEdit />,
+    hidden: hidden
   };
 }
 
 // Component for deleting a row in a table
-export function RowDeleteAction(props: RowAction): RowAction {
+export function RowDeleteAction({
+  onClick,
+  tooltip,
+  hidden
+}: {
+  onClick?: () => void;
+  tooltip?: string;
+  hidden?: boolean;
+}): RowAction {
   return {
-    ...props,
     title: t`Delete`,
     color: 'red',
-    icon: <IconTrash />
+    tooltip: tooltip,
+    onClick: onClick,
+    icon: <IconTrash />,
+    hidden: hidden
   };
 }
 
@@ -53,13 +85,11 @@ export function RowDeleteAction(props: RowAction): RowAction {
 export function RowActions({
   title,
   actions,
-  disabled = false,
-  index
+  disabled = false
 }: {
   title?: string;
   disabled?: boolean;
   actions: RowAction[];
-  index?: number;
 }): ReactNode {
   // Prevent default event handling
   // Ref: https://icflorescu.github.io/mantine-datatable/examples/links-or-buttons-inside-clickable-rows-or-cells
@@ -75,21 +105,26 @@ export function RowActions({
   }, [actions]);
 
   // Render a single action icon
-  function RowActionIcon(action: Readonly<RowAction>) {
+  function RowActionIcon(action: RowAction) {
     return (
       <Tooltip
         withinPortal={true}
         label={action.tooltip ?? action.title}
         key={action.title}
-        position="left"
       >
         <Menu.Item
           color={action.color}
-          leftSection={action.icon}
+          icon={action.icon}
           onClick={(event) => {
             // Prevent clicking on the action from selecting the row itself
             cancelEvent(event);
-            action.onClick();
+
+            if (action.onClick) {
+              action.onClick();
+            } else {
+              notYetImplemented();
+            }
+
             setOpened(false);
           }}
           disabled={action.disabled || false}
@@ -112,8 +147,6 @@ export function RowActions({
         <Menu.Target>
           <Tooltip withinPortal={true} label={title || t`Actions`}>
             <ActionIcon
-              key={`row-action-menu-${index ?? ''}`}
-              aria-label={`row-action-menu-${index ?? ''}`}
               onClick={openMenu}
               disabled={disabled}
               variant="subtle"

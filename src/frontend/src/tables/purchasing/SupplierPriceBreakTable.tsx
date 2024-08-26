@@ -20,7 +20,7 @@ import { apiUrl } from '../../states/ApiState';
 import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowDeleteAction, RowEditAction } from '../RowActions';
+import { RowDeleteAction, RowEditAction } from '../RowActions';
 
 export function calculateSupplierPartUnitPrice(record: any) {
   let pack_quantity = record?.part_detail?.pack_quantity_native ?? 1;
@@ -38,7 +38,7 @@ export function SupplierPriceBreakColumns(): TableColumn[] {
       switchable: true,
       render: (record: any) => {
         return (
-          <Group gap="xs" wrap="nowrap">
+          <Group spacing="xs" noWrap>
             <Thumbnail
               src={
                 record?.supplier_detail?.thumbnail ??
@@ -61,11 +61,7 @@ export function SupplierPriceBreakColumns(): TableColumn[] {
       render: (record: any) => {
         return (
           <Anchor
-            href={getDetailUrl(
-              ModelType.supplierpart,
-              record.part_detail.pk,
-              true
-            )}
+            href={getDetailUrl(ModelType.supplierpart, record.part_detail.pk)}
           >
             {record.part_detail.SKU}
           </Anchor>
@@ -100,7 +96,7 @@ export function SupplierPriceBreakColumns(): TableColumn[] {
         });
 
         return (
-          <Group justify="space-between" gap="xs" grow>
+          <Group position="apart" spacing="xs" grow>
             <Text>{price}</Text>
             {units && <Text size="xs">[{units}]</Text>}
           </Group>
@@ -144,7 +140,9 @@ export default function SupplierPriceBreakTable({
     initialData: {
       part: supplierPartId
     },
-    table: table
+    onFormSuccess: (data: any) => {
+      table.refreshTable();
+    }
   });
 
   const editPriceBreak = useEditApiFormModal({
@@ -152,14 +150,18 @@ export default function SupplierPriceBreakTable({
     pk: selectedPriceBreak,
     title: t`Edit Price Break`,
     fields: supplierPriceBreakFields,
-    table: table
+    onFormSuccess: (data: any) => {
+      table.refreshTable();
+    }
   });
 
   const deletePriceBreak = useDeleteApiFormModal({
     url: apiUrl(ApiEndpoints.supplier_part_pricing_list),
     pk: selectedPriceBreak,
     title: t`Delete Price Break`,
-    table: table
+    onFormSuccess: () => {
+      table.refreshTable();
+    }
   });
 
   const tableActions = useMemo(() => {
@@ -175,7 +177,7 @@ export default function SupplierPriceBreakTable({
   }, [user]);
 
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       return [
         RowEditAction({
           hidden: !user.hasChangeRole(UserRoles.purchase_order),

@@ -1,5 +1,5 @@
 import { Trans, t } from '@lingui/macro';
-import { Skeleton, Stack } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import {
   IconBellCog,
   IconDeviceDesktop,
@@ -22,11 +22,6 @@ import { AccountContent } from './AccountSettings/UserPanel';
  * User settings page
  */
 export default function UserSettings() {
-  const [user, isLoggedIn] = useUserState((state) => [
-    state.user,
-    state.isLoggedIn
-  ]);
-
   const userSettingsPanels: PanelType[] = useMemo(() => {
     return [
       {
@@ -44,34 +39,7 @@ export default function UserSettings() {
       {
         name: 'dashboard',
         label: t`Dashboard`,
-        icon: <IconDeviceDesktopAnalytics />,
-        content: (
-          <UserSettingList
-            keys={[
-              // TODO: These will be replaced with "dashboard" settings,
-              // once the new dashboard is implemented
-              'HOMEPAGE_HIDE_INACTIVE',
-              'HOMEPAGE_PART_STARRED',
-              'HOMEPAGE_CATEGORY_STARRED',
-              'HOMEPAGE_PART_LATEST',
-              'HOMEPAGE_BOM_REQUIRES_VALIDATION',
-              'HOMEPAGE_STOCK_RECENT',
-              'HOMEPAGE_STOCK_LOW',
-              'HOMEPAGE_SHOW_STOCK_DEPLETED',
-              'HOMEPAGE_BUILD_STOCK_NEEDED',
-              'HOMEPAGE_STOCK_EXPIRED',
-              'HOMEPAGE_STOCK_STALE',
-              'HOMEPAGE_BUILD_PENDING',
-              'HOMEPAGE_BUILD_OVERDUE',
-              'HOMEPAGE_PO_OUTSTANDING',
-              'HOMEPAGE_PO_OVERDUE',
-              'HOMEPAGE_SO_OUTSTANDING',
-              'HOMEPAGE_SO_OVERDUE',
-              'HOMEPAGE_SO_SHIPMENTS_PENDING',
-              'HOMEPAGE_NEWS'
-            ]}
-          />
-        )
+        icon: <IconDeviceDesktopAnalytics />
       },
       {
         name: 'display',
@@ -124,8 +92,7 @@ export default function UserSettings() {
       {
         name: 'notifications',
         label: t`Notifications`,
-        icon: <IconBellCog />,
-        content: <UserSettingList keys={['NOTIFICATION_ERROR_REPORT']} />
+        icon: <IconBellCog />
       },
       {
         name: 'reporting',
@@ -139,26 +106,21 @@ export default function UserSettings() {
       }
     ];
   }, []);
-
-  if (!isLoggedIn()) {
-    return <Skeleton />;
-  }
+  const [user] = useUserState((state) => [state.user]);
 
   return (
-    <Stack gap="xs">
-      <SettingsHeader
-        title={t`Account Settings`}
-        subtitle={
-          user?.first_name && user?.last_name
-            ? `${user?.first_name} ${user?.last_name}`
-            : null
-        }
-        shorthand={user?.username || ''}
-        switch_link="/settings/system"
-        switch_text={<Trans>Switch to System Setting</Trans>}
-        switch_condition={user?.is_staff || false}
-      />
-      <PanelGroup pageKey="user-settings" panels={userSettingsPanels} />
-    </Stack>
+    <>
+      <Stack spacing="xs">
+        <SettingsHeader
+          title={t`Account Settings`}
+          subtitle={`${user?.first_name} ${user?.last_name}`}
+          shorthand={user?.username || ''}
+          switch_link="/settings/system"
+          switch_text={<Trans>Switch to System Setting</Trans>}
+          switch_condition={user?.is_staff || false}
+        />
+        <PanelGroup pageKey="user-settings" panels={userSettingsPanels} />
+      </Stack>
+    </>
   );
 }

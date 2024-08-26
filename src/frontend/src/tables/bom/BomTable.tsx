@@ -1,31 +1,22 @@
 import { t } from '@lingui/macro';
-import { Alert, Group, Stack, Text } from '@mantine/core';
-import { showNotification } from '@mantine/notifications';
+import { Group, Text } from '@mantine/core';
 import {
   IconArrowRight,
   IconCircleCheck,
-  IconFileArrowLeft,
-  IconLock,
   IconSwitch3
 } from '@tabler/icons-react';
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { api } from '../../App';
-import { ActionButton } from '../../components/buttons/ActionButton';
 import { AddItemButton } from '../../components/buttons/AddItemButton';
 import { YesNoButton } from '../../components/buttons/YesNoButton';
 import { Thumbnail } from '../../components/images/Thumbnail';
-import ImporterDrawer from '../../components/importer/ImporterDrawer';
 import { formatDecimal, formatPriceRange } from '../../defaults/formatters';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
 import { bomItemFields } from '../../forms/BomForms';
-import { dataImporterSessionFields } from '../../forms/ImporterForms';
-import { notYetImplemented } from '../../functions/notifications';
 import {
-  useApiFormModal,
   useCreateApiFormModal,
   useDeleteApiFormModal,
   useEditApiFormModal
@@ -63,22 +54,14 @@ function availableStockQuantity(record: any): number {
 
 export function BomTable({
   partId,
-  partLocked,
   params = {}
 }: {
   partId: number;
-  partLocked?: boolean;
   params?: any;
 }) {
   const user = useUserState();
   const table = useTable('bom');
   const navigate = useNavigate();
-
-  const [importOpened, setImportOpened] = useState<boolean>(false);
-
-  const [selectedSession, setSelectedSession] = useState<number | undefined>(
-    undefined
-  );
 
   const tableColumns: TableColumn[] = useMemo(() => {
     return [
@@ -113,17 +96,10 @@ export function BomTable({
           );
         }
       },
-      {
-        accessor: 'sub_part_detail.IPN',
-        title: t`IPN`,
-        sortable: true
-      },
       DescriptionColumn({
         accessor: 'sub_part_detail.description'
       }),
-      ReferenceColumn({
-        switchable: true
-      }),
+      ReferenceColumn(),
       {
         accessor: 'quantity',
         switchable: false,
@@ -133,7 +109,7 @@ export function BomTable({
           let units = record.sub_part_detail?.units;
 
           return (
-            <Group justify="space-between" grow>
+            <Group position="apart" grow>
               <Text>{quantity}</Text>
               {record.overage && <Text size="xs">+{record.overage}</Text>}
               {units && <Text size="xs">{units}</Text>}
@@ -168,9 +144,6 @@ export function BomTable({
         // TODO: Custom renderer for this column
         // TODO: See bom.js for existing implementation
       }),
-      BooleanColumn({
-        accessor: 'validated'
-      }),
       {
         accessor: 'price_range',
         title: t`Unit Price`,
@@ -201,7 +174,7 @@ export function BomTable({
 
           let text =
             available_stock <= 0 ? (
-              <Text c="red" style={{ fontStyle: 'italic' }}>{t`No stock`}</Text>
+              <Text color="red" italic>{t`No stock`}</Text>
             ) : (
               available_stock
             );
@@ -259,52 +232,26 @@ export function BomTable({
       {
         accessor: 'can_build',
         title: t`Can Build`,
-        sortable: true,
+        sortable: false, // TODO: Custom sorting via API
         render: (record: any) => {
-          if (record.can_build === null || record.can_build === undefined) {
-            return '-';
-          }
-
-          if (!isFinite(record.can_build) || isNaN(record.can_build)) {
-            return '-';
-          }
-
-          let can_build = Math.trunc(record.can_build);
-          let value = (
-            <Text
-              fs={record.consumable && 'italic'}
-              c={can_build <= 0 && !record.consumable ? 'red' : undefined}
-            >
-              {can_build}
-            </Text>
-          );
-
-          let extra = [];
-
           if (record.consumable) {
-            extra.push(<Text key="consumable">{t`Consumable item`}</Text>);
-          } else if (can_build <= 0) {
-            extra.push(
-              <Text key="no-build" c="red">{t`No available stock`}</Text>
-            );
+            return <Text italic>{t`Consumable item`}</Text>;
           }
+
+          let can_build = availableStockQuantity(record) / record.quantity;
+          can_build = Math.trunc(can_build);
 
           return (
-            <TableHoverCard value={value} extra={extra} title={t`Can Build`} />
+            <Text color={can_build <= 0 ? 'red' : undefined}>{can_build}</Text>
           );
         }
       },
-      NoteColumn({})
+      NoteColumn()
     ];
   }, [partId, params]);
 
   const tableFilters: TableFilter[] = useMemo(() => {
     return [
-      {
-        name: 'sub_part_testable',
-        label: t`Testable Part`,
-        description: t`Show testable items`
-      },
       {
         name: 'sub_part_trackable',
         label: t`Trackable Part`,
@@ -313,41 +260,30 @@ export function BomTable({
       {
         name: 'sub_part_assembly',
         label: t`Assembled Part`,
-        description: t`Show assembled items`
+        description: t`Show asssmbled items`
       },
       {
         name: 'available_stock',
-        label: t`Available Stock`,
         description: t`Show items with available stock`
       },
       {
         name: 'on_order',
-        label: t`On Order`,
         description: t`Show items on order`
       },
       {
         name: 'validated',
-        label: t`Validated`,
         description: t`Show validated items`
       },
       {
         name: 'inherited',
-        label: t`Inherited`,
         description: t`Show inherited items`
       },
       {
-        name: 'allow_variants',
-        label: t`Allow Variants`,
-        description: t`Show items which allow variant substitution`
-      },
-      {
         name: 'optional',
-        label: t`Optional`,
         description: t`Show optional items`
       },
       {
         name: 'consumable',
-        label: t`Consumable`,
         description: t`Show consumable items`
       },
       {
@@ -360,29 +296,6 @@ export function BomTable({
 
   const [selectedBomItem, setSelectedBomItem] = useState<number>(0);
 
-  const importSessionFields = useMemo(() => {
-    let fields = dataImporterSessionFields();
-
-    fields.model_type.hidden = true;
-    fields.model_type.value = 'bomitem';
-
-    fields.field_overrides.value = {
-      part: partId
-    };
-
-    return fields;
-  }, [partId]);
-
-  const importBomItem = useCreateApiFormModal({
-    url: ApiEndpoints.import_session_list,
-    title: t`Import BOM Data`,
-    fields: importSessionFields,
-    onFormSuccess: (response: any) => {
-      setSelectedSession(response.pk);
-      setImportOpened(true);
-    }
-  });
-
   const newBomItem = useCreateApiFormModal({
     url: ApiEndpoints.bom_list,
     title: t`Add BOM Item`,
@@ -391,7 +304,7 @@ export function BomTable({
       part: partId
     },
     successMessage: t`BOM item created`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const editBomItem = useEditApiFormModal({
@@ -400,7 +313,7 @@ export function BomTable({
     title: t`Edit BOM Item`,
     fields: bomItemFields(),
     successMessage: t`BOM item updated`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const deleteBomItem = useDeleteApiFormModal({
@@ -408,54 +321,11 @@ export function BomTable({
     pk: selectedBomItem,
     title: t`Delete BOM Item`,
     successMessage: t`BOM item deleted`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
-
-  const validateBom = useApiFormModal({
-    url: ApiEndpoints.bom_validate,
-    method: 'PUT',
-    fields: {
-      valid: {
-        hidden: true,
-        value: true
-      }
-    },
-    title: t`Validate BOM`,
-    pk: partId,
-    preFormContent: (
-      <Alert color="green" icon={<IconCircleCheck />} title={t`Validate BOM`}>
-        <Text>{t`Do you want to validate the bill of materials for this assembly?`}</Text>
-      </Alert>
-    ),
-    successMessage: t`BOM validated`,
-    onFormSuccess: () => table.refreshTable()
-  });
-
-  const validateBomItem = useCallback((record: any) => {
-    const url = apiUrl(ApiEndpoints.bom_item_validate, record.pk);
-
-    api
-      .patch(url, { valid: true })
-      .then((_response) => {
-        showNotification({
-          title: t`Success`,
-          message: t`BOM item validated`,
-          color: 'green'
-        });
-
-        table.refreshTable();
-      })
-      .catch((_error) => {
-        showNotification({
-          title: t`Error`,
-          message: t`Failed to validate BOM item`,
-          color: 'red'
-        });
-      });
-  }, []);
 
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       // If this BOM item is defined for a *different* parent, then it cannot be edited
       if (record.part && record.part != partId) {
         return [
@@ -467,112 +337,81 @@ export function BomTable({
         ];
       }
 
-      return [
-        {
-          title: t`Validate BOM Line`,
-          color: 'green',
-          hidden:
-            partLocked ||
-            record.validated ||
-            !user.hasChangeRole(UserRoles.part),
-          icon: <IconCircleCheck />,
-          onClick: () => validateBomItem(record)
-        },
+      let actions: RowAction[] = [];
+
+      // TODO: Enable BomItem validation
+      actions.push({
+        title: t`Validate BOM line`,
+        color: 'green',
+        hidden: record.validated || !user.hasChangeRole(UserRoles.part),
+        icon: <IconCircleCheck />
+      });
+
+      // TODO: Enable editing of substitutes
+      actions.push({
+        title: t`Edit Substitutes`,
+        color: 'blue',
+        hidden: !user.hasChangeRole(UserRoles.part),
+        icon: <IconSwitch3 />
+      });
+
+      // Action on edit
+      actions.push(
         RowEditAction({
-          hidden: partLocked || !user.hasChangeRole(UserRoles.part),
+          hidden: !user.hasChangeRole(UserRoles.part),
           onClick: () => {
             setSelectedBomItem(record.pk);
             editBomItem.open();
           }
-        }),
-        {
-          title: t`Edit Substitutes`,
-          color: 'blue',
-          hidden: partLocked || !user.hasChangeRole(UserRoles.part),
-          icon: <IconSwitch3 />,
-          onClick: notYetImplemented
-        },
+        })
+      );
+
+      // Action on delete
+      actions.push(
         RowDeleteAction({
-          hidden: partLocked || !user.hasDeleteRole(UserRoles.part),
+          hidden: !user.hasDeleteRole(UserRoles.part),
           onClick: () => {
             setSelectedBomItem(record.pk);
             deleteBomItem.open();
           }
         })
-      ];
+      );
+
+      return actions;
     },
-    [partId, partLocked, user]
+    [partId, user]
   );
 
   const tableActions = useMemo(() => {
     return [
-      <ActionButton
-        hidden={partLocked || !user.hasAddRole(UserRoles.part)}
-        tooltip={t`Import BOM Data`}
-        icon={<IconFileArrowLeft />}
-        onClick={() => importBomItem.open()}
-      />,
-      <ActionButton
-        hidden={partLocked || !user.hasChangeRole(UserRoles.part)}
-        tooltip={t`Validate BOM`}
-        icon={<IconCircleCheck />}
-        onClick={() => validateBom.open()}
-      />,
       <AddItemButton
-        hidden={partLocked || !user.hasAddRole(UserRoles.part)}
+        hidden={!user.hasAddRole(UserRoles.part)}
         tooltip={t`Add BOM Item`}
         onClick={() => newBomItem.open()}
       />
     ];
-  }, [partLocked, user]);
+  }, [user]);
 
   return (
     <>
-      {importBomItem.modal}
       {newBomItem.modal}
       {editBomItem.modal}
-      {validateBom.modal}
       {deleteBomItem.modal}
-      <Stack gap="xs">
-        {partLocked && (
-          <Alert
-            title={t`Part is Locked`}
-            color="orange"
-            icon={<IconLock />}
-            p="xs"
-          >
-            <Text>{t`Bill of materials cannot be edited, as the part is locked`}</Text>
-          </Alert>
-        )}
-        <InvenTreeTable
-          url={apiUrl(ApiEndpoints.bom_list)}
-          tableState={table}
-          columns={tableColumns}
-          props={{
-            params: {
-              ...params,
-              part: partId,
-              part_detail: true,
-              sub_part_detail: true
-            },
-            tableActions: tableActions,
-            tableFilters: tableFilters,
-            modelType: ModelType.part,
-            modelField: 'sub_part',
-            rowActions: rowActions,
-            enableSelection: !partLocked,
-            enableBulkDelete: !partLocked && user.hasDeleteRole(UserRoles.part),
-            enableDownload: true
-          }}
-        />
-      </Stack>
-      <ImporterDrawer
-        sessionId={selectedSession ?? -1}
-        opened={selectedSession != undefined && importOpened}
-        onClose={() => {
-          setSelectedSession(undefined);
-          setImportOpened(false);
-          table.refreshTable();
+      <InvenTreeTable
+        url={apiUrl(ApiEndpoints.bom_list)}
+        tableState={table}
+        columns={tableColumns}
+        props={{
+          params: {
+            ...params,
+            part: partId,
+            part_detail: true,
+            sub_part_detail: true
+          },
+          tableActions: tableActions,
+          tableFilters: tableFilters,
+          modelType: ModelType.part,
+          rowActions: rowActions
         }}
       />
     </>

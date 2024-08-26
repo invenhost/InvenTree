@@ -23,11 +23,10 @@ export function useInstance<T = any>({
   hasPrimaryKey = true,
   refetchOnMount = true,
   refetchOnWindowFocus = false,
-  throwError = false,
-  updateInterval
+  throwError = false
 }: {
   endpoint: ApiEndpoints;
-  pk?: string | number | undefined;
+  pk?: string | undefined;
   hasPrimaryKey?: boolean;
   params?: any;
   pathParams?: PathParams;
@@ -35,24 +34,16 @@ export function useInstance<T = any>({
   refetchOnMount?: boolean;
   refetchOnWindowFocus?: boolean;
   throwError?: boolean;
-  updateInterval?: number;
 }) {
   const [instance, setInstance] = useState<T | undefined>(defaultValue);
 
-  const [requestStatus, setRequestStatus] = useState<number>(0);
-
   const instanceQuery = useQuery<T>({
-    queryKey: ['instance', endpoint, pk, params, pathParams],
+    queryKey: ['instance', endpoint, pk, params],
     queryFn: async () => {
       if (hasPrimaryKey) {
-        if (
-          pk == null ||
-          pk == undefined ||
-          pk.toString().length == 0 ||
-          pk == '-1'
-        ) {
+        if (pk == null || pk == undefined || pk.length == 0 || pk == '-1') {
           setInstance(defaultValue);
-          return defaultValue;
+          return null;
         }
       }
 
@@ -64,40 +55,31 @@ export function useInstance<T = any>({
           params: params
         })
         .then((response) => {
-          setRequestStatus(response.status);
           switch (response.status) {
             case 200:
               setInstance(response.data);
               return response.data;
             default:
               setInstance(defaultValue);
-              return defaultValue;
+              return null;
           }
         })
         .catch((error) => {
-          setRequestStatus(error.response?.status || 0);
           setInstance(defaultValue);
-          console.error(`ERR: Error fetching instance ${url}:`, error);
+          console.error(`Error fetching instance ${url}:`, error);
 
           if (throwError) throw error;
 
-          return defaultValue;
+          return null;
         });
     },
     refetchOnMount: refetchOnMount,
-    refetchOnWindowFocus: refetchOnWindowFocus ?? false,
-    refetchInterval: updateInterval
+    refetchOnWindowFocus: refetchOnWindowFocus
   });
 
   const refreshInstance = useCallback(function () {
     instanceQuery.refetch();
   }, []);
 
-  return {
-    instance,
-    setInstance,
-    refreshInstance,
-    instanceQuery,
-    requestStatus
-  };
+  return { instance, refreshInstance, instanceQuery };
 }

@@ -2,21 +2,18 @@
 
 from typing import Union, cast
 
-from django.contrib.auth.models import AnonymousUser
-from django.db import models
 from django.db.models.query import QuerySet
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
 
 from PIL.Image import Image
 from rest_framework import serializers
 from rest_framework.request import Request
 
-from generic.states import ColorEnum
+from label.models import LabelTemplate
 from machine.machine_type import BaseDriver, BaseMachineType, MachineStatus
 from plugin import registry as plg_registry
-from plugin.base.label.mixins import LabelPrintingMixin
-from report.models import LabelTemplate
+from plugin.base.label.mixins import LabelItemType, LabelPrintingMixin
 from stock.models import StockLocation
 
 
@@ -35,7 +32,8 @@ class LabelPrinterBaseDriver(BaseDriver):
         self,
         machine: 'LabelPrinterMachine',
         label: LabelTemplate,
-        item: models.Model,
+        item: LabelItemType,
+        request: Request,
         **kwargs,
     ) -> None:
         """Print a single label with the provided template and item.
@@ -44,6 +42,7 @@ class LabelPrinterBaseDriver(BaseDriver):
             machine: The LabelPrintingMachine instance that should be used for printing
             label: The LabelTemplate object to use for printing
             item: The database item to print (e.g. StockItem instance)
+            request: The HTTP request object which triggered this print job
 
         Keyword Arguments:
             printing_options (dict): The printing options set for this print job defined in the PrintingOptionsSerializer
@@ -57,7 +56,8 @@ class LabelPrinterBaseDriver(BaseDriver):
         self,
         machine: 'LabelPrinterMachine',
         label: LabelTemplate,
-        items: QuerySet[models.Model],
+        items: QuerySet[LabelItemType],
+        request: Request,
         **kwargs,
     ) -> Union[None, JsonResponse]:
         """Print one or more labels with the provided template and items.
@@ -66,6 +66,7 @@ class LabelPrinterBaseDriver(BaseDriver):
             machine: The LabelPrintingMachine instance that should be used for printing
             label: The LabelTemplate object to use for printing
             items: The list of database items to print (e.g. StockItem instances)
+            request: The HTTP request object which triggered this print job
 
         Keyword Arguments:
             printing_options (dict): The printing options set for this print job defined in the PrintingOptionsSerializer
@@ -79,10 +80,10 @@ class LabelPrinterBaseDriver(BaseDriver):
         but this can be overridden by the particular driver.
         """
         for item in items:
-            self.print_label(machine, label, item, **kwargs)
+            self.print_label(machine, label, item, request, **kwargs)
 
     def get_printers(
-        self, label: LabelTemplate, items: QuerySet, **kwargs
+        self, label: LabelTemplate, items: QuerySet[LabelItemType], **kwargs
     ) -> list['LabelPrinterMachine']:
         """Get all printers that would be available to print this job.
 
@@ -121,50 +122,60 @@ class LabelPrinterBaseDriver(BaseDriver):
         return cast(LabelPrintingMixin, plg)
 
     def render_to_pdf(
-        self, label: LabelTemplate, item: models.Model, **kwargs
+        self, label: LabelTemplate, item: LabelItemType, request: Request, **kwargs
     ) -> HttpResponse:
         """Helper method to render a label to PDF format for a specific item.
 
         Arguments:
             label: The LabelTemplate object to render
             item: The item to render the label with
+            request: The HTTP request object which triggered this print job
         """
-        request = self._get_dummy_request()
-        return self.machine_plugin.render_to_pdf(label, item, request, **kwargs)
+        label.object_to_print = item
+        response = self.machine_plugin.render_to_pdf(label, request, **kwargs)
+        label.object_to_print = None
+        return response
 
     def render_to_pdf_data(
-        self, label: LabelTemplate, item: models.Model, **kwargs
+        self, label: LabelTemplate, item: LabelItemType, request: Request, **kwargs
     ) -> bytes:
         """Helper method to render a label to PDF and return it as bytes for a specific item.
 
         Arguments:
             label: The LabelTemplate object to render
             item: The item to render the label with
+            request: The HTTP request object which triggered this print job
         """
         return (
-            self.render_to_pdf(label, item, **kwargs)
+            self.render_to_pdf(label, item, request, **kwargs)
             .get_document()  # type: ignore
             .write_pdf()
         )
 
-    def render_to_html(self, label: LabelTemplate, item: models.Model, **kwargs) -> str:
+    def render_to_html(
+        self, label: LabelTemplate, item: LabelItemType, request: Request, **kwargs
+    ) -> str:
         """Helper method to render a label to HTML format for a specific item.
 
         Arguments:
             label: The LabelTemplate object to render
             item: The item to render the label with
+            request: The HTTP request object which triggered this print job
         """
-        request = self._get_dummy_request()
-        return self.machine_plugin.render_to_html(label, item, request, **kwargs)
+        label.object_to_print = item
+        html = self.machine_plugin.render_to_html(label, request, **kwargs)
+        label.object_to_print = None
+        return html
 
     def render_to_png(
-        self, label: LabelTemplate, item: models.Model, **kwargs
-    ) -> Union[Image, None]:
+        self, label: LabelTemplate, item: LabelItemType, request: Request, **kwargs
+    ) -> Image:
         """Helper method to render a label to PNG format for a specific item.
 
         Arguments:
             label: The LabelTemplate object to render
             item: The item to render the label with
+            request: The HTTP request object which triggered this print job
 
         Keyword Arguments:
             pdf_data (bytes): The pdf document as bytes (optional)
@@ -174,20 +185,10 @@ class LabelPrinterBaseDriver(BaseDriver):
             pdf2image_kwargs (dict): Additional keyword arguments to pass to the
                 [`pdf2image.convert_from_bytes`](https://pdf2image.readthedocs.io/en/latest/reference.html#pdf2image.pdf2image.convert_from_bytes) method (optional)
         """
-        request = self._get_dummy_request()
-        return self.machine_plugin.render_to_png(label, item, request, **kwargs)
-
-    def _get_dummy_request(self):
-        """Return a dummy request object to it work with legacy code.
-
-        Note: this is a private method and can be removed at anytime
-        """
-        r = HttpRequest()
-        r.META['SERVER_PORT'] = '80'
-        r.META['SERVER_NAME'] = 'localhost'
-        r.user = AnonymousUser()
-
-        return r
+        label.object_to_print = item
+        png = self.machine_plugin.render_to_png(label, request, **kwargs)
+        label.object_to_print = None
+        return png
 
     required_overrides = [[print_label, print_labels]]
 
@@ -229,12 +230,11 @@ class LabelPrinterStatus(MachineStatus):
         DISCONNECTED: The driver cannot establish a connection to the printer
     """
 
-    CONNECTED = 100, _('Connected'), ColorEnum.success
-    UNKNOWN = 101, _('Unknown'), ColorEnum.secondary
-    PRINTING = 110, _('Printing'), ColorEnum.primary
-    NO_MEDIA = 301, _('No media'), ColorEnum.warning
-    PAPER_JAM = 302, _('Paper jam'), ColorEnum.warning
-    DISCONNECTED = 400, _('Disconnected'), ColorEnum.danger
+    CONNECTED = 100, _('Connected'), 'success'
+    UNKNOWN = 101, _('Unknown'), 'secondary'
+    PRINTING = 110, _('Printing'), 'primary'
+    NO_MEDIA = 301, _('No media'), 'warning'
+    DISCONNECTED = 400, _('Disconnected'), 'danger'
 
 
 class LabelPrinterMachine(BaseMachineType):

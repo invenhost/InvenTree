@@ -1,48 +1,35 @@
 import { Trans } from '@lingui/macro';
-import {
-  Group,
-  Menu,
-  Skeleton,
-  Text,
-  UnstyledButton,
-  useMantineColorScheme
-} from '@mantine/core';
+import { Group, Menu, Skeleton, Text, UnstyledButton } from '@mantine/core';
 import {
   IconChevronDown,
   IconLogout,
-  IconMoonStars,
   IconSettings,
-  IconSun,
   IconUserBolt,
   IconUserCog
 } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { doLogout } from '../../functions/auth';
-import * as classes from '../../main.css';
+import { InvenTreeStyle } from '../../globalStyle';
 import { useUserState } from '../../states/UserState';
-import { vars } from '../../theme';
 
 export function MainMenu() {
   const navigate = useNavigate();
-  const [user, username] = useUserState((state) => [
-    state.user,
-    state.username
-  ]);
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const { classes, theme } = InvenTreeStyle();
+  const userState = useUserState();
 
   return (
     <Menu width={260} position="bottom-end">
       <Menu.Target>
         <UnstyledButton className={classes.layoutHeaderUser}>
-          <Group gap={7}>
-            {username() ? (
-              <Text fw={500} size="sm" style={{ lineHeight: 1 }} mr={3}>
-                {username()}
-              </Text>
-            ) : (
-              <Skeleton height={20} width={40} radius={vars.radiusDefault} />
-            )}
+          <Group spacing={7}>
+            <Text weight={500} size="sm" sx={{ lineHeight: 1 }} mr={3}>
+              {userState.username() ? (
+                userState.username()
+              ) : (
+                <Skeleton height={20} width={40} radius={theme.defaultRadius} />
+              )}
+            </Text>
             <IconChevronDown />
           </Group>
         </UnstyledButton>
@@ -51,35 +38,22 @@ export function MainMenu() {
         <Menu.Label>
           <Trans>Settings</Trans>
         </Menu.Label>
-        <Menu.Item
-          leftSection={<IconUserCog />}
-          component={Link}
-          to="/settings/user"
-        >
+        <Menu.Item icon={<IconUserCog />} component={Link} to="/settings/user">
           <Trans>Account settings</Trans>
         </Menu.Item>
-        {user?.is_staff && (
+        {userState.user?.is_staff && (
           <Menu.Item
-            leftSection={<IconSettings />}
+            icon={<IconSettings />}
             component={Link}
             to="/settings/system"
           >
             <Trans>System Settings</Trans>
           </Menu.Item>
         )}
-        <Menu.Item
-          onClick={toggleColorScheme}
-          leftSection={colorScheme === 'dark' ? <IconSun /> : <IconMoonStars />}
-          c={
-            colorScheme === 'dark' ? vars.colors.yellow[4] : vars.colors.blue[6]
-          }
-        >
-          <Trans>Change Color Mode</Trans>
-        </Menu.Item>
-        {user?.is_staff && <Menu.Divider />}
-        {user?.is_staff && (
+        {userState.user?.is_staff && <Menu.Divider />}
+        {userState.user?.is_staff && (
           <Menu.Item
-            leftSection={<IconUserBolt />}
+            icon={<IconUserBolt />}
             component={Link}
             to="/settings/admin"
           >
@@ -88,7 +62,7 @@ export function MainMenu() {
         )}
         <Menu.Divider />
         <Menu.Item
-          leftSection={<IconLogout />}
+          icon={<IconLogout />}
           onClick={() => {
             doLogout(navigate);
           }}

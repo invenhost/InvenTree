@@ -16,8 +16,7 @@ import common.models
 import InvenTree.helpers
 import InvenTree.helpers_model
 import plugin.models
-from common.currency import currency_code_default
-from common.settings import get_global_setting
+from common.settings import currency_code_default
 from InvenTree import settings, version
 from plugin import registry
 from plugin.plugin import InvenTreePlugin
@@ -136,7 +135,7 @@ def inventree_in_debug_mode(*args, **kwargs):
 @register.simple_tag()
 def inventree_show_about(user, *args, **kwargs):
     """Return True if the about modal should be shown."""
-    if get_global_setting('INVENTREE_RESTRICT_ABOUT'):
+    if common.models.InvenTreeSetting.get_setting('INVENTREE_RESTRICT_ABOUT'):
         # Return False if the user is not a superuser, or no user information is provided
         if not user or not user.is_superuser:
             return False
@@ -374,7 +373,7 @@ def settings_value(key, *args, **kwargs):
             return common.models.InvenTreeUserSetting.get_setting(key)
         return common.models.InvenTreeUserSetting.get_setting(key, user=kwargs['user'])
 
-    return get_global_setting(key)
+    return common.models.InvenTreeSetting.get_setting(key)
 
 
 @register.simple_tag()
@@ -438,9 +437,9 @@ def progress_bar(val, max_val, *args, **kwargs):
 
 
 @register.simple_tag()
-def get_color_theme_css(user):
+def get_color_theme_css(username):
     """Return the custom theme .css file for the selected user."""
-    user_theme_name = get_user_color_theme(user)
+    user_theme_name = get_user_color_theme(username)
     # Build path to CSS sheet
     inventree_css_sheet = os.path.join('css', 'color-themes', user_theme_name + '.css')
 
@@ -451,18 +450,12 @@ def get_color_theme_css(user):
 
 
 @register.simple_tag()
-def get_user_color_theme(user):
+def get_user_color_theme(username):
     """Get current user color theme."""
     from common.models import ColorTheme
 
     try:
-        if not user.is_authenticated:
-            return 'default'
-    except Exception:
-        return 'default'
-
-    try:
-        user_theme = ColorTheme.objects.filter(user_obj=user).get()
+        user_theme = ColorTheme.objects.filter(user=username).get()
         user_theme_name = user_theme.name
         if not user_theme_name or not ColorTheme.is_valid_choice(user_theme):
             user_theme_name = 'default'

@@ -1,14 +1,14 @@
 import { t } from '@lingui/macro';
-import { Group } from '@mantine/core';
 import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { AddItemButton } from '../../components/buttons/AddItemButton';
 import { YesNoButton } from '../../components/buttons/YesNoButton';
-import { ApiIcon } from '../../components/items/ApiIcon';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
 import { partCategoryFields } from '../../forms/PartForms';
+import { getDetailUrl } from '../../functions/urls';
 import {
   useCreateApiFormModal,
   useEditApiFormModal
@@ -20,12 +20,14 @@ import { TableColumn } from '../Column';
 import { DescriptionColumn } from '../ColumnRenderers';
 import { TableFilter } from '../Filter';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowEditAction } from '../RowActions';
+import { RowEditAction } from '../RowActions';
 
 /**
  * PartCategoryTable - Displays a table of part categories
  */
 export function PartCategoryTable({ parentId }: { parentId?: any }) {
+  const navigate = useNavigate();
+
   const table = useTable('partcategory');
   const user = useUserState();
 
@@ -34,13 +36,7 @@ export function PartCategoryTable({ parentId }: { parentId?: any }) {
       {
         accessor: 'name',
         sortable: true,
-        switchable: false,
-        render: (record: any) => (
-          <Group gap="xs">
-            {record.icon && <ApiIcon name={record.icon} />}
-            {record.name}
-          </Group>
-        )
+        switchable: false
       },
       DescriptionColumn({}),
       {
@@ -72,11 +68,6 @@ export function PartCategoryTable({ parentId }: { parentId?: any }) {
         name: 'structural',
         label: t`Structural`,
         description: t`Show structural categories`
-      },
-      {
-        name: 'starred',
-        label: t`Subscribed`,
-        description: t`Show categories to which the user is subscribed`
       }
     ];
   }, []);
@@ -84,14 +75,17 @@ export function PartCategoryTable({ parentId }: { parentId?: any }) {
   const newCategory = useCreateApiFormModal({
     url: ApiEndpoints.category_list,
     title: t`New Part Category`,
-    fields: partCategoryFields(),
-    focus: 'name',
+    fields: partCategoryFields({}),
     initialData: {
       parent: parentId
     },
-    follow: true,
-    modelType: ModelType.partcategory,
-    table: table
+    onFormSuccess(data: any) {
+      if (data.pk) {
+        navigate(getDetailUrl(ModelType.partcategory, data.pk));
+      } else {
+        table.refreshTable();
+      }
+    }
   });
 
   const [selectedCategory, setSelectedCategory] = useState<number>(-1);
@@ -100,7 +94,7 @@ export function PartCategoryTable({ parentId }: { parentId?: any }) {
     url: ApiEndpoints.category_list,
     pk: selectedCategory,
     title: t`Edit Part Category`,
-    fields: partCategoryFields(),
+    fields: partCategoryFields({}),
     onFormSuccess: (record: any) => table.updateRecord(record)
   });
 
@@ -117,7 +111,7 @@ export function PartCategoryTable({ parentId }: { parentId?: any }) {
   }, [user]);
 
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       let can_edit = user.hasChangeRole(UserRoles.part_category);
 
       return [
@@ -144,8 +138,7 @@ export function PartCategoryTable({ parentId }: { parentId?: any }) {
         props={{
           enableDownload: true,
           params: {
-            parent: parentId,
-            top_level: parentId === undefined ? true : undefined
+            parent: parentId
           },
           tableFilters: tableFilters,
           tableActions: tableActions,

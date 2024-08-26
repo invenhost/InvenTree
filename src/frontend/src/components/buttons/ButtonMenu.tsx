@@ -11,14 +11,14 @@ export function ButtonMenu({
   label = ''
 }: {
   icon: any;
-  actions: React.ReactNode[];
+  actions: any[];
   label?: string;
   tooltip?: string;
 }) {
   return (
     <Menu shadow="xs">
       <Menu.Target>
-        <ActionIcon variant="default">
+        <ActionIcon>
           <Tooltip label={tooltip}>{icon}</Tooltip>
         </ActionIcon>
       </Menu.Target>

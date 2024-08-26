@@ -1,3 +1,0 @@
-[[IgnoredVulns]]
-id = "GHSA-5vcc-86wm-547q"
-reason = "Effected codepath is not used in the project"

@@ -30,7 +30,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'abstract': False,
-                'verbose_name': 'Purchase Order'
             },
         ),
         migrations.CreateModel(
@@ -44,7 +43,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'abstract': False,
-                'verbose_name': 'Purchase Order Line Item'
             },
         ),
     ]

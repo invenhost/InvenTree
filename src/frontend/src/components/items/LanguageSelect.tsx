@@ -1,4 +1,4 @@
-import { Select } from '@mantine/core';
+import { Select, SelectItem } from '@mantine/core';
 import { useEffect, useState } from 'react';
 
 import { getSupportedLanguages } from '../../contexts/LanguageContext';
@@ -10,7 +10,7 @@ export function LanguageSelect({ width = 80 }: { width?: number }) {
     state.language,
     state.setLanguage
   ]);
-  const [langOptions, setLangOptions] = useState<any[]>([]);
+  const [langOptions, setLangOptions] = useState<SelectItem[]>([]);
 
   // change global language on change
   useEffect(() => {

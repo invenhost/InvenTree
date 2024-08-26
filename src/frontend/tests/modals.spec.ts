@@ -26,15 +26,13 @@ test('PUI - Modals as admin', async ({ page }) => {
   await page.getByText('License Information').first().waitFor();
   await page.getByRole('tab', { name: 'backend Packages' }).click();
   await page.getByRole('button', { name: 'Babel BSD License' }).click();
-  await page
-    .getByText('by the Babel Team, see AUTHORS for more information')
-    .waitFor();
+  await page.getByText('Copyright (c) 2013-2023 by').waitFor();
 
   await page.getByRole('tab', { name: 'frontend Packages' }).click();
   await page.getByRole('button', { name: '@sentry/utils MIT' }).click();
   await page
-    .getByLabel('@sentry/utilsMIT')
-    .getByText('Copyright (c) 2019')
+    .getByLabel('@sentry/utilsMIT7.109.0')
+    .getByText('Copyright (c) 2019 Sentry (')
     .waitFor();
 
   await page
@@ -54,10 +52,18 @@ test('PUI - Modals as admin', async ({ page }) => {
 
   // qr code modal
   await page.getByRole('button', { name: 'Open QR code scanner' }).click();
-  await page.getByRole('banner').getByRole('button').click();
+  await page
+    .locator('div')
+    .filter({ hasText: /^Scan QR code$/ })
+    .getByRole('button')
+    .click();
   await page.getByRole('button', { name: 'Open QR code scanner' }).click();
   await page.getByRole('button', { name: 'Close modal' }).click();
   await page.getByRole('button', { name: 'Open QR code scanner' }).click();
   await page.waitForTimeout(500);
-  await page.getByRole('banner').getByRole('button').click();
+  await page
+    .locator('div')
+    .filter({ hasText: /^Scan QR code$/ })
+    .getByRole('button')
+    .click();
 });

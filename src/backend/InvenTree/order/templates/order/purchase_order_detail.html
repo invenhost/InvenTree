@@ -120,8 +120,6 @@
             'order-notes',
             '{% url "api-po-detail" order.pk %}',
             {
-                model_type: "purchaseorder",
-                model_id: {{ order.pk }},
                 {% if roles.purchase_order.change %}
                 editable: true,
                 {% else %}
@@ -132,7 +130,17 @@
     });
 
     onPanelLoad('order-attachments', function() {
-        loadAttachmentTable('purchaseorder', {{ order.pk }});
+        loadAttachmentTable('{% url "api-po-attachment-list" %}', {
+            filters: {
+                order: {{ order.pk }},
+            },
+            fields: {
+                order: {
+                    value: {{ order.pk }},
+                    hidden: true,
+                }
+            }
+        });
     });
 
     loadStockTable($("#stock-table"), {

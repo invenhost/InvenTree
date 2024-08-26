@@ -211,13 +211,6 @@
             <td>{% decimal on_order %} {% include "part/part_units.html" %}</td>
         </tr>
         {% endif %}
-        {% if required > 0 %}
-        <tr>
-            <td><span class='fas fa-clipboard-check'></span></td>
-            <td>{% trans "Required for Orders" %}</td>
-            <td>{% decimal required %}</td>
-        </tr>
-        {% endif %}
         {% if part.component %}
         {% if required_build_order_quantity > 0 or allocated_build_order_quantity > 0 %}
         <tr>
@@ -278,15 +271,6 @@
             </tr>
             {% endif %}
             {% settings_value "PART_ENABLE_REVISION" as show_revision %}
-            {% if show_revision and part.revision_of %}
-            <tr>
-                <td><span class='fas fa-sitemap'></span></td>
-                <td>{% trans "Revision Of" %}</td>
-                <td>
-                    <a href='{% url "part-detail" part.revision_of.pk %}'>{{ part.revision_of.full_name }}</a>
-                </td>
-            </tr>
-            {% endif %}
             {% if show_revision and part.revision %}
             <tr>
                 <td><span class='fas fa-code-branch'></span></td>
@@ -458,7 +442,7 @@
     $("#show-qr-code").click(function() {
         showQRDialog(
             '{% trans "Part QR Code" escape %}',
-            '{{ part.barcode }}',
+            '{"part": {{ part.pk }} }',
         );
     });
 
@@ -484,8 +468,9 @@
     $('#print-label').click(function() {
         printLabels({
             items: [{{ part.pk }}],
-            model_type: 'part',
+            key: 'part',
             singular_name: 'part',
+            url: '{% url "api-part-label-list" %}',
         });
     });
     {% endif %}

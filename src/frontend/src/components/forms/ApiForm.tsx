@@ -1,19 +1,17 @@
 import { t } from '@lingui/macro';
 import {
   Alert,
-  Button,
   DefaultMantineColor,
-  Divider,
-  Group,
   LoadingOverlay,
   Paper,
-  Stack,
   Text
 } from '@mantine/core';
+import { Button, Divider, Group, Stack } from '@mantine/core';
 import { useId } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState } from 'react';
 import {
   FieldValues,
   FormProvider,
@@ -35,9 +33,7 @@ import {
 } from '../../functions/forms';
 import { invalidResponse } from '../../functions/notifications';
 import { getDetailUrl } from '../../functions/urls';
-import { TableState } from '../../hooks/UseTable';
 import { PathParams } from '../../states/ApiState';
-import { Boundary } from '../Boundary';
 import {
   ApiFormField,
   ApiFormFieldSet,
@@ -55,7 +51,6 @@ export interface ApiFormAction {
  * Properties for the ApiForm component
  * @param url : The API endpoint to fetch the form data from
  * @param pk : Optional primary-key value when editing an existing object
- * @param pk_field : Optional primary-key field name (default: pk)
  * @param pathParams : Optional path params for the url
  * @param method : Optional HTTP method to use when submitting the form (default: GET)
  * @param fields : The fields to render in the form
@@ -67,15 +62,12 @@ export interface ApiFormAction {
  * @param successMessage : Optional message to display on successful form submission
  * @param onFormSuccess : A callback function to call when the form is submitted successfully.
  * @param onFormError : A callback function to call when the form is submitted with errors.
- * @param processFormData : A callback function to process the form data before submission
  * @param modelType : Define a model type for this form
  * @param follow : Boolean, follow the result of the form (if possible)
- * @param table : Table to update on success (if provided)
  */
 export interface ApiFormProps {
   url: ApiEndpoints | string;
   pk?: number | string | undefined;
-  pk_field?: string;
   pathParams?: PathParams;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   fields?: ApiFormFieldSet;
@@ -92,8 +84,6 @@ export interface ApiFormProps {
   successMessage?: string;
   onFormSuccess?: (data: any) => void;
   onFormError?: () => void;
-  processFormData?: (data: any) => any;
-  table?: TableState;
   modelType?: ModelType;
   follow?: boolean;
   actions?: ApiFormAction[];
@@ -125,6 +115,7 @@ export function OptionsApiForm({
   const optionsQuery = useQuery({
     enabled: true,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryKey: [
       'form-options-data',
       id,
@@ -139,19 +130,16 @@ export function OptionsApiForm({
       if (!props.ignorePermissionCheck) {
         fields = extractAvailableFields(response, props.method);
       }
-
       return fields;
     },
     throwOnError: (error: any) => {
       if (error.response) {
         invalidResponse(error.response.status);
       } else {
-        notifications.hide('form-error');
         notifications.show({
           title: t`Form Error`,
           message: error.message,
-          color: 'red',
-          id: 'form-error'
+          color: 'red'
         });
       }
       return false;
@@ -184,7 +172,7 @@ export function OptionsApiForm({
     <ApiForm
       id={id}
       props={formProps}
-      optionsLoading={optionsQuery.isFetching || !optionsQuery.data}
+      optionsLoading={optionsQuery.isFetching}
     />
   );
 }
@@ -204,9 +192,9 @@ export function ApiForm({
 }) {
   const navigate = useNavigate();
 
-  const [fields, setFields] = useState<ApiFormFieldSet>(
-    () => props.fields ?? {}
-  );
+  const fields: ApiFormFieldSet = useMemo(() => {
+    return props.fields ?? {};
+  }, [props.fields]);
 
   const defaultValues: FieldValues = useMemo(() => {
     let defaultValuesMap = mapFields(fields ?? {}, (_path, field) => {
@@ -249,31 +237,6 @@ export function ApiForm({
     [props.url, props.pk, props.pathParams]
   );
 
-  // Define function to process API response
-  const processFields = (fields: ApiFormFieldSet, data: NestedDict) => {
-    const res: NestedDict = {};
-
-    for (const [k, field] of Object.entries(fields)) {
-      const dataValue = data[k];
-
-      if (
-        field.field_type === 'nested object' &&
-        field.children &&
-        typeof dataValue === 'object'
-      ) {
-        res[k] = processFields(field.children, dataValue);
-      } else {
-        res[k] = dataValue;
-
-        if (field.onValueChange) {
-          field.onValueChange(dataValue, data);
-        }
-      }
-    }
-
-    return res;
-  };
-
   // Query manager for retrieving initial data from the server
   const initialDataQuery = useQuery({
     enabled: false,
@@ -286,51 +249,62 @@ export function ApiForm({
       props.pathParams
     ],
     queryFn: async () => {
-      return await api
-        .get(url)
-        .then((response: any) => {
-          // Process API response
-          const fetchedData: any = processFields(fields, response.data);
+      try {
+        // Await API call
+        let response = await api.get(url);
 
-          // Update form values, but only for the fields specified for this form
-          form.reset(fetchedData);
-          return fetchedData;
-        })
-        .catch(() => {
-          return {};
+        // Define function to process API response
+        const processFields = (fields: ApiFormFieldSet, data: NestedDict) => {
+          const res: NestedDict = {};
+
+          // TODO: replace with .map()
+          for (const [k, field] of Object.entries(fields)) {
+            const dataValue = data[k];
+
+            if (
+              field.field_type === 'nested object' &&
+              field.children &&
+              typeof dataValue === 'object'
+            ) {
+              res[k] = processFields(field.children, dataValue);
+            } else {
+              res[k] = dataValue;
+            }
+          }
+
+          return res;
+        };
+
+        // Process API response
+        const initialData: any = processFields(fields, response.data);
+
+        // Update form values, but only for the fields specified for this form
+        form.reset(initialData);
+
+        // Update the field references, too
+        Object.keys(fields).forEach((fieldName) => {
+          if (fieldName in initialData) {
+            let field = fields[fieldName] ?? {};
+            fields[fieldName] = {
+              ...field,
+              value: initialData[fieldName]
+            };
+          }
         });
+
+        return response;
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
+        // Re-throw error to allow react-query to handle error
+        throw error;
+      }
     }
   });
-
-  useEffect(() => {
-    let _fields: any = props.fields || {};
-    let _initialData: any = props.initialData || {};
-    let _fetchedData: any = initialDataQuery.data || {};
-
-    for (const k of Object.keys(_fields)) {
-      // Ensure default values override initial field spec
-      if (k in defaultValues) {
-        _fields[k].value = defaultValues[k];
-      }
-
-      // Ensure initial data overrides default values
-      if (_initialData && k in _initialData) {
-        _fields[k].value = _initialData[k];
-      }
-
-      // Ensure fetched data overrides also
-      if (_fetchedData && k in _fetchedData) {
-        _fields[k].value = _fetchedData[k];
-      }
-    }
-
-    setFields(_fields);
-  }, [props.fields, props.initialData, defaultValues, initialDataQuery.data]);
 
   // Fetch initial data on form load
   useEffect(() => {
     // Fetch initial data if the fetchInitialData property is set
-    if (!optionsLoading && props.fetchInitialData) {
+    if (props.fetchInitialData) {
       queryClient.removeQueries({
         queryKey: [
           'form-initial-data',
@@ -343,16 +317,22 @@ export function ApiForm({
       });
       initialDataQuery.refetch();
     }
-  }, [props.fetchInitialData, optionsLoading]);
+  }, [props.fetchInitialData]);
 
-  const isLoading: boolean = useMemo(
+  const isLoading = useMemo(
     () =>
       isFormLoading ||
       initialDataQuery.isFetching ||
       optionsLoading ||
       isSubmitting ||
       !fields,
-    [isFormLoading, initialDataQuery, isSubmitting, fields, optionsLoading]
+    [
+      isFormLoading,
+      initialDataQuery.isFetching,
+      isSubmitting,
+      fields,
+      optionsLoading
+    ]
   );
 
   const [initialFocus, setInitialFocus] = useState<string>('');
@@ -368,22 +348,17 @@ export function ApiForm({
           return;
         }
 
-        // Do not auto-focus on a 'choice' field
-        if (field.field_type == 'choice') {
-          return;
-        }
-
         focusField = fieldName;
       });
     }
 
-    if (isLoading) {
+    if (isLoading || initialFocus == focusField) {
       return;
     }
 
     form.setFocus(focusField);
     setInitialFocus(focusField);
-  }, [props.focus, form.setFocus, isLoading, initialFocus]);
+  }, [props.focus, fields, form.setFocus, isLoading, initialFocus]);
 
   const submitForm: SubmitHandler<FieldValues> = async (data) => {
     setNonFieldErrors([]);
@@ -391,42 +366,16 @@ export function ApiForm({
     let method = props.method?.toLowerCase() ?? 'get';
 
     let hasFiles = false;
-
-    // Optionally pre-process the data before submitting it
-    if (props.processFormData) {
-      data = props.processFormData(data);
-    }
-
-    let dataForm = new FormData();
-
-    Object.keys(data).forEach((key: string) => {
-      let value: any = data[key];
-      let field_type = fields[key]?.field_type;
-
-      if (field_type == 'file upload' && !!value) {
+    mapFields(fields, (_path, field) => {
+      if (field.field_type === 'file upload') {
         hasFiles = true;
-      }
-
-      // Stringify any JSON objects
-      if (typeof value === 'object') {
-        switch (field_type) {
-          case 'file upload':
-            break;
-          default:
-            value = JSON.stringify(value);
-            break;
-        }
-      }
-
-      if (value != undefined) {
-        dataForm.append(key, value);
       }
     });
 
     return api({
       method: method,
       url: url,
-      data: hasFiles ? dataForm : data,
+      data: data,
       timeout: props.timeout,
       headers: {
         'Content-Type': hasFiles ? 'multipart/form-data' : 'application/json'
@@ -439,22 +388,14 @@ export function ApiForm({
           case 204:
             // Form was submitted successfully
 
+            // Optionally call the onFormSuccess callback
             if (props.onFormSuccess) {
-              // A custom callback hook is provided
               props.onFormSuccess(response.data);
             }
 
-            if (props.follow && props.modelType && response.data?.pk) {
-              // If we want to automatically follow the returned data
-              navigate(getDetailUrl(props.modelType, response.data?.pk));
-            } else if (props.table) {
-              // If we want to automatically update or reload a linked table
-              let pk_field = props.pk_field ?? 'pk';
-
-              if (props.pk && response?.data[pk_field]) {
-                props.table.updateRecord(response.data);
-              } else {
-                props.table.refreshTable();
+            if (props.follow) {
+              if (props.modelType && response.data?.pk) {
+                navigate(getDetailUrl(props.modelType, response.data?.pk));
               }
             }
 
@@ -490,11 +431,7 @@ export function ApiForm({
                 for (const [k, v] of Object.entries(errors)) {
                   const path = _path ? `${_path}.${k}` : k;
 
-                  // Determine if field "k" is valid (exists and is visible)
-                  let field = fields[k];
-                  let valid = field && !field.hidden;
-
-                  if (!valid || k === 'non_field_errors' || k === '__all__') {
+                  if (k === 'non_field_errors' || k === '__all__') {
                     if (Array.isArray(v)) {
                       _nonFieldErrors.push(...v);
                     }
@@ -502,20 +439,7 @@ export function ApiForm({
                   }
 
                   if (typeof v === 'object' && Array.isArray(v)) {
-                    if (field?.field_type == 'table') {
-                      // Special handling for "table" fields - they have nested errors
-                      v.forEach((item: any, idx: number) => {
-                        for (const [key, value] of Object.entries(item)) {
-                          const path: string = `${k}.${idx}.${key}`;
-                          if (Array.isArray(value)) {
-                            form.setError(path, { message: value.join(', ') });
-                          }
-                        }
-                      });
-                    } else {
-                      // Standard error handling for other fields
-                      form.setError(path, { message: v.join(', ') });
-                    }
+                    form.setError(path, { message: v.join(', ') });
                   } else {
                     processErrors(v, path);
                   }
@@ -544,104 +468,83 @@ export function ApiForm({
     props.onFormError?.();
   }, [props.onFormError]);
 
-  if (optionsLoading || initialDataQuery.isFetching) {
-    return (
-      <Paper mah={'65vh'}>
-        <LoadingOverlay visible zIndex={1010} />
-      </Paper>
-    );
-  }
-
   return (
     <Stack>
-      <Boundary label={`ApiForm-${id}`}>
-        {/* Show loading overlay while fetching fields */}
-        {/* zIndex used to force overlay on top of modal header bar */}
-        <LoadingOverlay visible={isLoading} zIndex={1010} />
+      {/* Show loading overlay while fetching fields */}
+      {/* zIndex used to force overlay on top of modal header bar */}
+      <LoadingOverlay visible={isLoading} zIndex={1010} />
 
-        {/* Attempt at making fixed footer with scroll area */}
-        <Paper mah={'65vh'} style={{ overflowY: 'auto' }}>
-          <div>
-            {/* Form Fields */}
-            <Stack gap="sm">
-              {(!isValid || nonFieldErrors.length > 0) && (
-                <Alert radius="sm" color="red" title={t`Form Error`}>
-                  {nonFieldErrors.length > 0 ? (
-                    <Stack gap="xs">
-                      {nonFieldErrors.map((message) => (
-                        <Text key={message}>{message}</Text>
-                      ))}
-                    </Stack>
-                  ) : (
-                    <Text>{t`Errors exist for one or more form fields`}</Text>
-                  )}
-                </Alert>
-              )}
-              <Boundary label={`ApiForm-${id}-PreFormContent`}>
-                {props.preFormContent}
-                {props.preFormSuccess && (
-                  <Alert color="green" radius="sm">
-                    {props.preFormSuccess}
-                  </Alert>
-                )}
-                {props.preFormWarning && (
-                  <Alert color="orange" radius="sm">
-                    {props.preFormWarning}
-                  </Alert>
-                )}
-              </Boundary>
-              <Boundary label={`ApiForm-${id}-FormContent`}>
-                <FormProvider {...form}>
-                  <Stack gap="xs">
-                    {Object.entries(fields).map(([fieldName, field]) => {
-                      return (
-                        <ApiFormField
-                          key={fieldName}
-                          fieldName={fieldName}
-                          definition={field}
-                          control={form.control}
-                          url={url}
-                          setFields={setFields}
-                        />
-                      );
-                    })}
-                  </Stack>
-                </FormProvider>
-              </Boundary>
-              <Boundary label={`ApiForm-${id}-PostFormContent`}>
-                {props.postFormContent}
-              </Boundary>
-            </Stack>
-          </div>
-        </Paper>
-
-        {/* Footer with Action Buttons */}
-        <Divider />
+      {/* Attempt at making fixed footer with scroll area */}
+      <Paper mah={'65vh'} style={{ overflowY: 'auto' }}>
         <div>
-          <Group justify="right">
-            {props.actions?.map((action, i) => (
-              <Button
-                key={i}
-                onClick={action.onClick}
-                variant={action.variant ?? 'outline'}
-                radius="sm"
-                color={action.color}
-              >
-                {action.text}
-              </Button>
-            ))}
-            <Button
-              onClick={form.handleSubmit(submitForm, onFormError)}
-              variant="filled"
-              radius="sm"
-              color={props.submitColor ?? 'green'}
-              disabled={isLoading || (props.fetchInitialData && !isDirty)}
-            >
-              {props.submitText ?? t`Submit`}
-            </Button>
-          </Group>
+          {/* Form Fields */}
+          <Stack spacing="sm">
+            {(!isValid || nonFieldErrors.length > 0) && (
+              <Alert radius="sm" color="red" title={t`Form Errors Exist`}>
+                {nonFieldErrors.length > 0 && (
+                  <Stack spacing="xs">
+                    {nonFieldErrors.map((message) => (
+                      <Text key={message}>{message}</Text>
+                    ))}
+                  </Stack>
+                )}
+              </Alert>
+            )}
+            {props.preFormContent}
+            {props.preFormSuccess && (
+              <Alert color="green" radius="sm">
+                {props.preFormSuccess}
+              </Alert>
+            )}
+            {props.preFormWarning && (
+              <Alert color="orange" radius="sm">
+                {props.preFormWarning}
+              </Alert>
+            )}
+            <FormProvider {...form}>
+              <Stack spacing="xs">
+                {!optionsLoading &&
+                  Object.entries(fields).map(([fieldName, field]) => (
+                    <ApiFormField
+                      key={fieldName}
+                      fieldName={fieldName}
+                      definition={field}
+                      control={form.control}
+                    />
+                  ))}
+              </Stack>
+            </FormProvider>
+            {props.postFormContent}
+          </Stack>
         </div>
-      </Boundary>
+      </Paper>
+
+      {/* Footer with Action Buttons */}
+      <Divider />
+      <div>
+        <Group position="right">
+          {props.actions?.map((action, i) => (
+            <Button
+              key={i}
+              onClick={action.onClick}
+              variant={action.variant ?? 'outline'}
+              radius="sm"
+              color={action.color}
+            >
+              {action.text}
+            </Button>
+          ))}
+          <Button
+            onClick={form.handleSubmit(submitForm, onFormError)}
+            variant="filled"
+            radius="sm"
+            color={props.submitColor ?? 'green'}
+            disabled={isLoading || (props.fetchInitialData && !isDirty)}
+          >
+            {props.submitText ?? t`Submit`}
+          </Button>
+        </Group>
+      </div>
     </Stack>
   );
 }

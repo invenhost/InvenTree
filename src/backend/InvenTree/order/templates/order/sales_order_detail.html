@@ -190,8 +190,6 @@
             'order-notes',
             '{% url "api-so-detail" order.pk %}',
             {
-                model_type: "salesorder",
-                model_id: {{ order.pk }},
                 {% if roles.purchase_order.change %}
                 editable: true,
                 {% else %}
@@ -203,7 +201,17 @@
 
     onPanelLoad('order-attachments', function() {
 
-        loadAttachmentTable('salesorder', {{ order.pk }});
+        loadAttachmentTable('{% url "api-so-attachment-list" %}', {
+            filters: {
+                order: {{ order.pk }},
+            },
+            fields: {
+            order: {
+                    value: {{ order.pk }},
+                    hidden: true,
+                },
+            }
+        });
     });
 
     loadBuildTable($("#builds-table"), {

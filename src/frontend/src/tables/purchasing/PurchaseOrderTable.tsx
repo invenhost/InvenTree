@@ -8,7 +8,6 @@ import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
 import { usePurchaseOrderFields } from '../../forms/PurchaseOrderForms';
-import { useOwnerFilters, useProjectCodeFilters } from '../../hooks/UseFilter';
 import { useCreateApiFormModal } from '../../hooks/UseForm';
 import { useTable } from '../../hooks/UseTable';
 import { apiUrl } from '../../states/ApiState';
@@ -45,9 +44,6 @@ export function PurchaseOrderTable({
   const table = useTable('purchase-order');
   const user = useUserState();
 
-  const projectCodeFilters = useProjectCodeFilters();
-  const responsibleFilters = useOwnerFilters();
-
   const tableFilters: TableFilter[] = useMemo(() => {
     return [
       {
@@ -58,30 +54,15 @@ export function PurchaseOrderTable({
       },
       OutstandingFilter(),
       OverdueFilter(),
-      AssignedToMeFilter(),
-      {
-        name: 'project_code',
-        label: t`Project Code`,
-        description: t`Filter by project code`,
-        choices: projectCodeFilters.choices
-      },
-      {
-        name: 'has_project_code',
-        label: t`Has Project Code`,
-        description: t`Filter by whether the purchase order has a project code`
-      },
-      {
-        name: 'assigned_to',
-        label: t`Responsible`,
-        description: t`Filter by responsible owner`,
-        choices: responsibleFilters.choices
-      }
+      AssignedToMeFilter()
+      // TODO: has_project_code
+      // TODO: project_code
     ];
-  }, [projectCodeFilters.choices, responsibleFilters.choices]);
+  }, []);
 
   const tableColumns = useMemo(() => {
     return [
-      ReferenceColumn({}),
+      ReferenceColumn(),
       DescriptionColumn({}),
       {
         accessor: 'supplier__name',
@@ -103,10 +84,10 @@ export function PurchaseOrderTable({
         accessor: 'supplier_reference'
       },
       LineItemsProgressColumn(),
-      StatusColumn({ model: ModelType.purchaseorder }),
-      ProjectCodeColumn({}),
-      CreationDateColumn({}),
-      TargetDateColumn({}),
+      StatusColumn(ModelType.purchaseorder),
+      ProjectCodeColumn(),
+      CreationDateColumn(),
+      TargetDateColumn(),
       {
         accessor: 'total_price',
         title: t`Total Price`,
@@ -117,7 +98,7 @@ export function PurchaseOrderTable({
           });
         }
       },
-      ResponsibleColumn({})
+      ResponsibleColumn()
     ];
   }, []);
 
@@ -159,10 +140,7 @@ export function PurchaseOrderTable({
           },
           tableFilters: tableFilters,
           tableActions: tableActions,
-          modelType: ModelType.purchaseorder,
-          enableSelection: true,
-          enableDownload: true,
-          enableReports: true
+          modelType: ModelType.purchaseorder
         }}
       />
     </>

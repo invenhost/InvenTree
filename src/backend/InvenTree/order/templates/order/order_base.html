@@ -63,28 +63,23 @@
         <li><a class='dropdown-item' href='#' id='edit-order'>
             <span class='fas fa-edit icon-green'></span> {% trans "Edit order" %}
         </a></li>
-        {% if roles.purchase_order.add %}
-        <li><a class='dropdown-item' href='#' id='duplicate-order'>
-            <span class='fas fa-clone'></span> {% trans "Duplicate order" %}
-        </a></li>
-        {% endif %}
-        {% if order.can_hold %}
-        <li><a class='dropdown-item' href='#' id='hold-order'>
-            <span class='fas fa-hand-paper icon-yellow'></span> {% trans "Hold order" %}
-        </a></li>
-        {% endif %}
         {% if order.can_cancel %}
         <li><a class='dropdown-item' href='#' id='cancel-order'>
             <span class='fas fa-times-circle icon-red'></span> {% trans "Cancel order" %}
         </a></li>
         {% endif %}
+        {% if roles.purchase_order.add %}
+        <li><a class='dropdown-item' href='#' id='duplicate-order'>
+            <span class='fas fa-clone'></span> {% trans "Duplicate order" %}
+        </a></li>
+        {% endif %}
     </ul>
 </div>
-{% if order.can_issue %}
+{% if order.is_pending %}
 <button type='button' class='btn btn-primary' id='place-order' title='{% trans "Issue Order" %}'>
     <span class='fas fa-paper-plane'></span> {% trans "Issue Order" %}
 </button>
-{% elif order.status == PurchaseOrderStatus.PLACED %}
+{% elif order.is_open %}
 <button type='button' class='btn btn-success' id='complete-order' title='{% trans "Mark order as complete" %}'>
     <span class='fas fa-check-circle'></span> {% trans "Complete Order" %}
 </button>
@@ -122,7 +117,7 @@ src="{% static 'img/blank_image.png' %}"
         <td><span class='fas fa-info'></span></td>
         <td>{% trans "Order Status" %}</td>
         <td>
-            {% display_status_label 'purchase_order' order.status_custom_key order.status %}
+            {% status_label 'purchase_order' order.status %}
             {% if order.is_overdue %}
             <span class='badge rounded-pill bg-danger'>{% trans "Overdue" %}</span>
             {% endif %}
@@ -243,7 +238,7 @@ src="{% static 'img/blank_image.png' %}"
 {% block js_ready %}
 {{ block.super }}
 
-{% if order.status == PurchaseOrderStatus.PENDING or order.status == PurchaseOrderStatus.ON_HOLD %}
+{% if order.status == PurchaseOrderStatus.PENDING %}
 $("#place-order").click(function() {
 
     issuePurchaseOrder(
@@ -258,7 +253,11 @@ $("#place-order").click(function() {
 
 {% if report_enabled %}
 $('#print-order-report').click(function() {
-    printReports('purchaseorder', [{{ order.pk }}]);
+    printReports({
+        items: [{{ order.pk }}],
+        key: 'order',
+        url: '{% url "api-po-report-list" %}',
+    });
 });
 {% endif %}
 
@@ -286,7 +285,6 @@ $("#complete-order").click(function() {
     );
 });
 
-{% if order.can_cancel %}
 $("#cancel-order").click(function() {
 
     cancelPurchaseOrder(
@@ -298,21 +296,6 @@ $("#cancel-order").click(function() {
         },
     );
 });
-{% endif %}
-
-{% if order.can_hold %}
-$("#hold-order").click(function() {
-
-    holdOrder(
-        '{% url "api-po-hold" order.pk %}',
-        {
-            onSuccess: function() {
-                window.location.reload();
-            }
-        }
-    );
-});
-{% endif %}
 
 {% endif %}
 
@@ -333,7 +316,7 @@ $("#export-order").click(function() {
 $('#show-qr-code').click(function() {
     showQRDialog(
         '{% trans "Purchase Order QR Code" escape %}',
-        '{{ order.barcode }}'
+        '{"purchaseorder": {{ order.pk }} }'
     );
 });
 

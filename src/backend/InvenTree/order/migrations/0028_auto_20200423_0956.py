@@ -5,8 +5,6 @@ import django.core.validators
 from django.db import migrations, models
 import django.db.models.deletion
 
-from order.status_codes import PurchaseOrderStatus
-
 
 class Migration(migrations.Migration):
 
@@ -19,12 +17,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='purchaseorder',
             name='status',
-            field=models.PositiveIntegerField(
-                choices=PurchaseOrderStatus.items(),
-                default=PurchaseOrderStatus.PENDING.value,
-                help_text='Purchase order status',
-                verbose_name='Status',
-            ),
+            field=models.PositiveIntegerField(choices=[(10, 'Pending'), (20, 'Placed'), (30, 'Complete'), (40, 'Cancelled'), (50, 'Lost'), (60, 'Returned')], default=10, help_text='Purchase order status'),
         ),
         migrations.AlterField(
             model_name='salesorder',

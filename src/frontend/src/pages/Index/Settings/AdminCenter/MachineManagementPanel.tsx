@@ -38,7 +38,7 @@ export default function MachineManagementPanel() {
 
       <Space h="10px" />
 
-      <Stack gap={'xs'}>
+      <Stack spacing={'xs'}>
         <Title order={5}>
           <Trans>Machine types</Trans>
         </Title>
@@ -47,7 +47,7 @@ export default function MachineManagementPanel() {
 
       <Space h="10px" />
 
-      <Stack gap={'xs'}>
+      <Stack spacing={'xs'}>
         <Group>
           <Title order={5}>
             <Trans>Machine Error Stack</Trans>
@@ -58,7 +58,7 @@ export default function MachineManagementPanel() {
         </Group>
         {registryStatus?.registry_errors &&
         registryStatus.registry_errors.length === 0 ? (
-          <Text style={{ fontStyle: 'italic' }}>
+          <Text italic>
             <Trans>There are no machine registry errors.</Trans>
           </Text>
         ) : (

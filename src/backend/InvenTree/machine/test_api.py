@@ -80,18 +80,15 @@ class MachineAPITest(TestMachineRegistryMixin, InvenTreeAPITestCase):
         machine_type = [t for t in response.data if t['slug'] == 'label-printer']
         self.assertEqual(len(machine_type), 1)
         machine_type = machine_type[0]
-        self.assertEqual(
-            machine_type,
+        self.assertDictContainsSubset(
             {
-                **machine_type,
-                **{
-                    'slug': 'label-printer',
-                    'name': 'Label Printer',
-                    'description': 'Directly print labels for various items.',
-                    'provider_plugin': None,
-                    'is_builtin': True,
-                },
+                'slug': 'label-printer',
+                'name': 'Label Printer',
+                'description': 'Directly print labels for various items.',
+                'provider_plugin': None,
+                'is_builtin': True,
             },
+            machine_type,
         )
         self.assertTrue(
             machine_type['provider_file'].endswith(
@@ -105,20 +102,17 @@ class MachineAPITest(TestMachineRegistryMixin, InvenTreeAPITestCase):
         driver = [a for a in response.data if a['slug'] == 'test-label-printer-api']
         self.assertEqual(len(driver), 1)
         driver = driver[0]
-        self.assertEqual(
-            driver,
+        self.assertDictContainsSubset(
             {
-                **driver,
-                **{
-                    'slug': 'test-label-printer-api',
-                    'name': 'Test label printer',
-                    'description': 'This is a test label printer driver for testing.',
-                    'provider_plugin': None,
-                    'is_builtin': True,
-                    'machine_type': 'label-printer',
-                    'driver_errors': [],
-                },
+                'slug': 'test-label-printer-api',
+                'name': 'Test label printer',
+                'description': 'This is a test label printer driver for testing.',
+                'provider_plugin': None,
+                'is_builtin': True,
+                'machine_type': 'label-printer',
+                'driver_errors': [],
             },
+            driver,
         )
         self.assertEqual(driver['provider_file'], __file__)
 
@@ -169,22 +163,19 @@ class MachineAPITest(TestMachineRegistryMixin, InvenTreeAPITestCase):
 
         response = self.get(reverse('api-machine-list'))
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(
-            response.data[0],
+        self.assertDictContainsSubset(
             {
-                **response.data[0],
-                **{
-                    'name': 'Test Machine',
-                    'machine_type': 'label-printer',
-                    'driver': 'test-label-printer-api',
-                    'initialized': True,
-                    'active': True,
-                    'status': 101,
-                    'status_model': 'LabelPrinterStatus',
-                    'status_text': '',
-                    'is_driver_available': True,
-                },
+                'name': 'Test Machine',
+                'machine_type': 'label-printer',
+                'driver': 'test-label-printer-api',
+                'initialized': True,
+                'active': True,
+                'status': 101,
+                'status_model': 'LabelPrinterStatus',
+                'status_text': '',
+                'is_driver_available': True,
             },
+            response.data[0],
         )
 
     def test_machine_detail(self):
@@ -204,21 +195,19 @@ class MachineAPITest(TestMachineRegistryMixin, InvenTreeAPITestCase):
 
         # Create a machine
         response = self.post(reverse('api-machine-list'), machine_data)
-        self.assertEqual(response.data, {**response.data, **machine_data})
+        self.assertDictContainsSubset(machine_data, response.data)
         pk = response.data['pk']
 
         # Retrieve the machine
         response = self.get(reverse('api-machine-detail', kwargs={'pk': pk}))
-        self.assertEqual(response.data, {**response.data, **machine_data})
+        self.assertDictContainsSubset(machine_data, response.data)
 
         # Update the machine
         response = self.patch(
             reverse('api-machine-detail', kwargs={'pk': pk}),
             {'name': 'Updated Machine'},
         )
-        self.assertEqual(
-            response.data, {**response.data, **{'name': 'Updated Machine'}}
-        )
+        self.assertDictContainsSubset({'name': 'Updated Machine'}, response.data)
         self.assertEqual(MachineConfig.objects.get(pk=pk).name, 'Updated Machine')
 
         # Delete the machine

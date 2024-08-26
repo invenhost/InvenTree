@@ -14,7 +14,10 @@
 {% block heading %}
 {% if category %}
 {% trans "Part Category" %}:
-<span id='category-icon'></span>
+{% settings_value "PART_CATEGORY_DEFAULT_ICON" as default_icon %}
+{% if category.icon or default_icon %}
+<span class="{{ category.icon|default:default_icon }}"></span>
+{% endif %}
 {{ category.name }}
 {% else %}
 {% trans "Parts" %}
@@ -231,10 +234,6 @@
 {% block js_ready %}
 {{ block.super }}
 
-    loadApiIconPacks().then(() => {
-        $('#category-icon').addClass(getApiIconClass('{{ category.icon }}'));
-    });
-
     {% settings_value "STOCKTAKE_ENABLE" as stocktake_enable %}
     {% if stocktake_enable and roles.stocktake.add %}
     $('#category-stocktake').click(function() {
@@ -243,11 +242,13 @@
                 {% if category %}value: {{ category.pk }},{% endif %}
                 tree_picker: {
                     url: '{% url "api-part-category-tree" %}',
+                    default_icon: global_settings.PART_CATEGORY_DEFAULT_ICON,
                 },
             },
             location: {
                 tree_picker: {
                     url: '{% url "api-location-tree" %}',
+                    default_icon: global_settings.STOCK_LOCATION_DEFAULT_ICON,
                 },
             },
             generate_report: {},
@@ -307,6 +308,7 @@
 
             return node;
         },
+        defaultIcon: global_settings.PART_CATEGORY_DEFAULT_ICON,
     });
 
     onPanelLoad('subcategories', function() {
@@ -315,8 +317,6 @@
                 params: {
                     {% if category %}
                     parent: {{ category.pk }},
-                    {% else %}
-                    top_level: true,
                     {% endif %}
                 },
                 allowTreeView: true,

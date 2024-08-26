@@ -14,7 +14,6 @@ from rest_framework.fields import URLField as RestURLField
 from rest_framework.fields import empty
 
 import InvenTree.helpers
-from common.settings import get_global_setting
 
 from .validators import AllowedURLValidator, allowable_url_schemes
 
@@ -33,7 +32,11 @@ class InvenTreeRestURLField(RestURLField):
 
     def run_validation(self, data=empty):
         """Override default validation behaviour for this field type."""
-        strict_urls = get_global_setting('INVENTREE_STRICT_URLS', cache=False)
+        import common.models
+
+        strict_urls = common.models.InvenTreeSetting.get_setting(
+            'INVENTREE_STRICT_URLS', True, cache=False
+        )
 
         if not strict_urls and data is not empty and '://' not in data:
             # Validate as if there were a schema provided
@@ -56,7 +59,7 @@ class InvenTreeURLField(models.URLField):
 
 def money_kwargs(**kwargs):
     """Returns the database settings for MoneyFields."""
-    from common.currency import currency_code_default, currency_code_mappings
+    from common.settings import currency_code_default, currency_code_mappings
 
     # Default values (if not specified)
     if 'max_digits' not in kwargs:

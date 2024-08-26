@@ -2,17 +2,15 @@ import { ActionIcon, Container, Group, Indicator, Tabs } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconBell, IconSearch } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
-import { useMatch, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useMatch, useNavigate, useParams } from 'react-router-dom';
 
 import { api } from '../../App';
 import { navTabs as mainNavTabs } from '../../defaults/links';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
-import { navigateToLink } from '../../functions/navigation';
-import * as classes from '../../main.css';
+import { InvenTreeStyle } from '../../globalStyle';
 import { apiUrl } from '../../states/ApiState';
 import { useLocalState } from '../../states/LocalState';
-import { useUserState } from '../../states/UserState';
 import { ScanButton } from '../buttons/ScanButton';
 import { SpotlightButton } from '../buttons/SpotlightButton';
 import { MainMenu } from './MainMenu';
@@ -22,6 +20,7 @@ import { NotificationDrawer } from './NotificationDrawer';
 import { SearchDrawer } from './SearchDrawer';
 
 export function Header() {
+  const { classes } = InvenTreeStyle();
   const [setNavigationOpen, navigationOpen] = useLocalState((state) => [
     state.setNavigationOpen,
     state.navigationOpen
@@ -38,19 +37,12 @@ export function Header() {
     { open: openNotificationDrawer, close: closeNotificationDrawer }
   ] = useDisclosure(false);
 
-  const { isLoggedIn } = useUserState();
-
   const [notificationCount, setNotificationCount] = useState<number>(0);
 
   // Fetch number of notifications for the current user
   const notifications = useQuery({
     queryKey: ['notification-count'],
-    enabled: isLoggedIn(),
     queryFn: async () => {
-      if (!isLoggedIn()) {
-        return null;
-      }
-
       try {
         const params = {
           params: {
@@ -58,19 +50,19 @@ export function Header() {
             limit: 1
           }
         };
-        let response = await api
-          .get(apiUrl(ApiEndpoints.notifications_list), params)
-          .catch(() => {
-            return null;
-          });
-        setNotificationCount(response?.data?.count ?? 0);
-        return response?.data ?? null;
+        let response = await api.get(
+          apiUrl(ApiEndpoints.notifications_list),
+          params
+        );
+        setNotificationCount(response.data.count);
+        return response.data;
       } catch (error) {
-        return null;
+        return error;
       }
     },
     refetchInterval: 30000,
-    refetchOnMount: true
+    refetchOnMount: true,
+    refetchOnWindowFocus: false
   });
 
   // Sync Navigation Drawer state with zustand
@@ -97,32 +89,28 @@ export function Header() {
         }}
       />
       <Container className={classes.layoutHeaderSection} size="100%">
-        <Group justify="space-between">
+        <Group position="apart">
           <Group>
             <NavHoverMenu openDrawer={openNavDrawer} />
             <NavTabs />
           </Group>
           <Group>
-            <ActionIcon onClick={openSearchDrawer} variant="transparent">
+            <ActionIcon onClick={openSearchDrawer}>
               <IconSearch />
             </ActionIcon>
             <SpotlightButton />
             <ScanButton />
-            <Indicator
-              radius="lg"
-              size="18"
-              label={notificationCount}
-              color="red"
-              disabled={notificationCount <= 0}
-              inline
-            >
-              <ActionIcon
-                onClick={openNotificationDrawer}
-                variant="transparent"
+            <ActionIcon onClick={openNotificationDrawer}>
+              <Indicator
+                radius="lg"
+                size="18"
+                label={notificationCount}
+                color="red"
+                disabled={notificationCount <= 0}
               >
                 <IconBell />
-              </ActionIcon>
-            </Indicator>
+              </Indicator>
+            </ActionIcon>
             <MainMenu />
           </Group>
         </Group>
@@ -132,46 +120,31 @@ export function Header() {
 }
 
 function NavTabs() {
-  const user = useUserState();
+  const { classes } = InvenTreeStyle();
   const navigate = useNavigate();
   const match = useMatch(':tabName/*');
   const tabValue = match?.params.tabName;
-
-  const tabs: ReactNode[] = useMemo(() => {
-    let _tabs: ReactNode[] = [];
-
-    mainNavTabs.forEach((tab) => {
-      if (tab.role && !user.hasViewRole(tab.role)) {
-        return;
-      }
-
-      _tabs.push(
-        <Tabs.Tab
-          value={tab.name}
-          key={tab.name}
-          onClick={(event: any) =>
-            navigateToLink(`/${tab.name}`, navigate, event)
-          }
-        >
-          {tab.text}
-        </Tabs.Tab>
-      );
-    });
-
-    return _tabs;
-  }, [mainNavTabs, user]);
 
   return (
     <Tabs
       defaultValue="home"
       classNames={{
         root: classes.tabs,
-        list: classes.tabsList,
+        tabsList: classes.tabsList,
         tab: classes.tab
       }}
       value={tabValue}
+      onTabChange={(value) =>
+        value == '/' ? navigate('/') : navigate(`/${value}`)
+      }
     >
-      <Tabs.List>{tabs.map((tab) => tab)}</Tabs.List>
+      <Tabs.List>
+        {mainNavTabs.map((tab) => (
+          <Tabs.Tab value={tab.name} key={tab.name}>
+            {tab.text}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
     </Tabs>
   );
 }

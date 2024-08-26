@@ -19,6 +19,7 @@ class TestForwardMigrations(MigratorTestCase):
             name='Widget',
             description='Buildable Part',
             active=True,
+            level=0, lft=0, rght=0, tree_id=0,
         )
 
         Build = self.old_state.apps.get_model('build', 'build')
@@ -60,6 +61,7 @@ class TestReferenceMigration(MigratorTestCase):
         part = Part.objects.create(
             name='Part',
             description='A test part',
+            level=0, lft=0, rght=0, tree_id=0,
         )
 
         Build = self.old_state.apps.get_model('build', 'build')

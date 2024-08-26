@@ -26,9 +26,9 @@ class LocatePluginTests(InvenTreeAPITestCase):
         """Test that a locate plugin is actually installed."""
         plugins = registry.with_mixin('locate')
 
-        self.assertGreater(len(plugins), 0)
+        self.assertTrue(len(plugins) > 0)
 
-        self.assertIn('samplelocate', [p.slug for p in plugins])
+        self.assertTrue('samplelocate' in [p.slug for p in plugins])
 
     def test_locate_fail(self):
         """Test various API failure modes."""

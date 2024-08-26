@@ -11,11 +11,12 @@ import {
   Table,
   Title
 } from '@mantine/core';
+import { LoaderType } from '@mantine/styles/lib/theme/types/MantineTheme';
 import { useState } from 'react';
 
 import { SizeMarks } from '../../../../defaults/defaults';
+import { InvenTreeStyle } from '../../../../globalStyle';
 import { useLocalState } from '../../../../states/LocalState';
-import { theme } from '../../../../theme';
 
 function getLkp(color: string) {
   return { [DEFAULT_THEME.colors[color][6]]: color };
@@ -26,6 +27,8 @@ const LOOKUP = Object.assign(
 );
 
 export function UserTheme({ height }: { height: number }) {
+  const { theme } = InvenTreeStyle();
+
   // primary color
   function changePrimary(color: string) {
     useLocalState.setState({ primaryColor: LOOKUP[color] });
@@ -66,13 +69,10 @@ export function UserTheme({ height }: { height: number }) {
     { value: 'oval', label: t`oval` },
     { value: 'dots', label: t`dots` }
   ];
-  const [themeLoader, setThemeLoader] = useLocalState((state) => [
-    state.loader,
-    state.setLoader
-  ]);
-  function changeLoader(value: string | null) {
-    if (value === null) return;
-    setThemeLoader(value);
+  const [loader, setLoader] = useState<LoaderType>(theme.loader);
+  function changeLoader(value: LoaderType) {
+    setLoader(value);
+    useLocalState.setState({ loader: value });
   }
 
   return (
@@ -81,41 +81,41 @@ export function UserTheme({ height }: { height: number }) {
         <Trans>Theme</Trans>
       </Title>
       <Table>
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Td>
+        <tbody>
+          <tr>
+            <td>
               <Trans>Primary color</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <ColorPicker
                 format="hex"
                 onChange={changePrimary}
                 withPicker={false}
                 swatches={Object.keys(LOOKUP)}
               />
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+          </tr>
+          <tr>
+            <td>
               <Trans>White color</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <ColorInput value={whiteColor} onChange={changeWhite} />
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+          </tr>
+          <tr>
+            <td>
               <Trans>Black color</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <ColorInput value={blackColor} onChange={changeBlack} />
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+          </tr>
+          <tr>
+            <td>
               <Trans>Border Radius</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <Slider
                 label={(val) => getMark(val).label}
                 defaultValue={50}
@@ -125,24 +125,24 @@ export function UserTheme({ height }: { height: number }) {
                 onChange={changeRadius}
                 mb={18}
               />
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+          </tr>
+          <tr>
+            <td>
               <Trans>Loader</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <Group align="center">
                 <Select
                   data={loaderDate}
-                  value={themeLoader}
+                  value={loader}
                   onChange={changeLoader}
                 />
-                <Loader type={themeLoader} mah={18} />
+                <Loader type={loader} mah={18} />
               </Group>
-            </Table.Td>
-          </Table.Tr>
-        </Table.Tbody>
+            </td>
+          </tr>
+        </tbody>
       </Table>
     </Container>
   );

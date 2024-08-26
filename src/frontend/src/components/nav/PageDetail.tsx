@@ -1,24 +1,9 @@
 import { Group, Paper, Space, Stack, Text } from '@mantine/core';
-import { useHotkeys } from '@mantine/hooks';
 import { Fragment, ReactNode } from 'react';
 
 import { ApiImage } from '../images/ApiImage';
 import { StylishText } from '../items/StylishText';
 import { Breadcrumb, BreadcrumbList } from './BreadcrumbList';
-
-interface PageDetailInterface {
-  title?: string;
-  icon?: ReactNode;
-  subtitle?: string;
-  imageUrl?: string;
-  detail?: ReactNode;
-  badges?: ReactNode[];
-  breadcrumbs?: Breadcrumb[];
-  breadcrumbAction?: () => void;
-  actions?: ReactNode[];
-  editAction?: () => void;
-  editEnabled?: boolean;
-}
 
 /**
  * Construct a "standard" page detail for common display between pages.
@@ -28,65 +13,59 @@ interface PageDetailInterface {
  */
 export function PageDetail({
   title,
-  icon,
   subtitle,
   detail,
   badges,
   imageUrl,
   breadcrumbs,
   breadcrumbAction,
-  actions,
-  editAction,
-  editEnabled
-}: Readonly<PageDetailInterface>) {
-  useHotkeys([
-    [
-      'mod+E',
-      () => {
-        if (editEnabled ?? true) {
-          editAction?.();
-        }
-      }
-    ]
-  ]);
-
+  actions
+}: {
+  title?: string;
+  subtitle?: string;
+  imageUrl?: string;
+  detail?: ReactNode;
+  badges?: ReactNode[];
+  breadcrumbs?: Breadcrumb[];
+  breadcrumbAction?: () => void;
+  actions?: ReactNode[];
+}) {
   return (
-    <Stack gap="xs">
+    <Stack spacing="xs">
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <BreadcrumbList
-          navCallback={breadcrumbAction}
-          breadcrumbs={breadcrumbs}
-        />
+        <Paper p="xs" radius="xs" shadow="xs">
+          <BreadcrumbList
+            navCallback={breadcrumbAction}
+            breadcrumbs={breadcrumbs}
+          />
+        </Paper>
       )}
       <Paper p="xs" radius="xs" shadow="xs">
-        <Stack gap="xs">
-          <Group justify="space-between" wrap="nowrap">
-            <Group justify="left" wrap="nowrap">
+        <Stack spacing="xs">
+          <Group position="apart" noWrap={true}>
+            <Group position="left" noWrap={true}>
               {imageUrl && (
-                <ApiImage src={imageUrl} radius="sm" h={64} w={64} />
+                <ApiImage src={imageUrl} radius="sm" height={64} width={64} />
               )}
-              <Stack gap="xs">
+              <Stack spacing="xs">
                 {title && <StylishText size="lg">{title}</StylishText>}
                 {subtitle && (
-                  <Group gap="xs">
-                    {icon}
-                    <Text size="md" truncate>
-                      {subtitle}
-                    </Text>
-                  </Group>
+                  <Text size="md" truncate>
+                    {subtitle}
+                  </Text>
                 )}
               </Stack>
             </Group>
             <Space />
             {detail}
-            <Group justify="right" gap="xs" wrap="nowrap">
+            <Group position="right" spacing="xs" noWrap>
               {badges?.map((badge, idx) => (
                 <Fragment key={idx}>{badge}</Fragment>
               ))}
             </Group>
             <Space />
             {actions && (
-              <Group gap={5} justify="right">
+              <Group spacing={5} position="right">
                 {actions.map((action, idx) => (
                   <Fragment key={idx}>{action}</Fragment>
                 ))}

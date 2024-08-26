@@ -41,7 +41,7 @@ export default function InstalledItemsTable({
         accessor: 'batch',
         switchable: false
       },
-      StatusColumn({ model: ModelType.stockitem })
+      StatusColumn(ModelType.stockitem)
     ];
   }, []);
 
@@ -50,18 +50,20 @@ export default function InstalledItemsTable({
   }, [user]);
 
   return (
-    <InvenTreeTable
-      url={apiUrl(ApiEndpoints.stock_item_list)}
-      tableState={table}
-      columns={tableColumns}
-      props={{
-        tableActions: tableActions,
-        modelType: ModelType.stockitem,
-        params: {
-          belongs_to: parentId,
-          part_detail: true
-        }
-      }}
-    />
+    <>
+      <InvenTreeTable
+        url={apiUrl(ApiEndpoints.stock_item_list)}
+        tableState={table}
+        columns={tableColumns}
+        props={{
+          tableActions: tableActions,
+          modelType: ModelType.stockitem,
+          params: {
+            belongs_to: parentId,
+            part_detail: true
+          }
+        }}
+      />
+    </>
   );
 }

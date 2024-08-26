@@ -3,9 +3,9 @@
 """Provides extra global data to all templates."""
 
 import InvenTree.email
-import InvenTree.ready
 import InvenTree.status
-from generic.states.custom import get_custom_classes
+from generic.states import StatusCode
+from InvenTree.helpers import inheritors
 from users.models import RuleSet, check_user_role
 
 
@@ -53,10 +53,7 @@ def status_codes(request):
         return {}
 
     request._inventree_status_codes = True
-    get_custom = InvenTree.ready.isRebuildingData() is False
-    return {
-        cls.__name__: cls.template_context() for cls in get_custom_classes(get_custom)
-    }
+    return {cls.__name__: cls.template_context() for cls in inheritors(StatusCode)}
 
 
 def user_roles(request):

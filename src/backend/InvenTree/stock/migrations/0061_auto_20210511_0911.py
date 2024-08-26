@@ -4,7 +4,7 @@ import re
 
 from django.db import migrations
 
-from stock.status_codes import StockHistoryCode
+from InvenTree.status_codes import StockHistoryCode
 
 
 def update_history(apps, schema_editor):

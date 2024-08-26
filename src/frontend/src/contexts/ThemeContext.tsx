@@ -1,5 +1,11 @@
 import { t } from '@lingui/macro';
-import { MantineProvider, createTheme } from '@mantine/core';
+import {
+  ColorScheme,
+  ColorSchemeProvider,
+  MantineProvider,
+  MantineThemeOverride
+} from '@mantine/core';
+import { useColorScheme, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 
@@ -8,24 +14,36 @@ import { LicenseModal } from '../components/modals/LicenseModal';
 import { QrCodeModal } from '../components/modals/QrCodeModal';
 import { ServerInfoModal } from '../components/modals/ServerInfoModal';
 import { useLocalState } from '../states/LocalState';
-import { LanguageContext } from './LanguageContext';
-import { colorSchema } from './colorSchema';
 
 export function ThemeContext({ children }: { children: JSX.Element }) {
-  const [primaryColor, whiteColor, blackColor, radius] = useLocalState(
+  const [primaryColor, whiteColor, blackColor, radius, loader] = useLocalState(
     (state) => [
       state.primaryColor,
       state.whiteColor,
       state.blackColor,
-      state.radius
+      state.radius,
+      state.loader
     ]
   );
 
+  // Color Scheme
+  const preferredColorScheme = useColorScheme();
+  const [colorScheme, setColorScheme] = useLocalStorage<ColorScheme>({
+    key: 'scheme',
+    defaultValue: preferredColorScheme
+  });
+  const toggleColorScheme = (value?: ColorScheme) => {
+    setColorScheme(value || (colorScheme === 'dark' ? 'light' : 'dark'));
+    myTheme.colorScheme = colorScheme;
+  };
+
   // Theme
-  const myTheme = createTheme({
+  const myTheme: MantineThemeOverride = {
+    colorScheme: colorScheme,
     primaryColor: primaryColor,
     white: whiteColor,
     black: blackColor,
+    loader: loader,
     defaultRadius: radius,
     breakpoints: {
       xs: '30em',
@@ -34,11 +52,15 @@ export function ThemeContext({ children }: { children: JSX.Element }) {
       lg: '74em',
       xl: '90em'
     }
-  });
+  };
 
   return (
-    <MantineProvider theme={myTheme} colorSchemeManager={colorSchema}>
-      <LanguageContext>
+    <ColorSchemeProvider
+      colorScheme={colorScheme}
+      toggleColorScheme={toggleColorScheme}
+    >
+      <MantineProvider theme={myTheme} withGlobalStyles withNormalizeCSS>
+        <Notifications />
         <ModalsProvider
           labels={{ confirm: t`Submit`, cancel: t`Cancel` }}
           modals={{
@@ -48,10 +70,9 @@ export function ThemeContext({ children }: { children: JSX.Element }) {
             license: LicenseModal
           }}
         >
-          <Notifications />
           {children}
         </ModalsProvider>
-      </LanguageContext>
-    </MantineProvider>
+      </MantineProvider>
+    </ColorSchemeProvider>
   );
 }

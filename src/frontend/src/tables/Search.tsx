@@ -19,7 +19,7 @@ export function TableSearchInput({
   return (
     <TextInput
       value={value}
-      leftSection={<IconSearch />}
+      icon={<IconSearch />}
       placeholder={t`Search`}
       onChange={(event) => setValue(event.target.value)}
       rightSection={

@@ -1,10 +1,9 @@
 import { t } from '@lingui/macro';
-import { Alert, Divider, Stack } from '@mantine/core';
+import { Alert, Divider, MantineNumberSize, Stack } from '@mantine/core';
 import { useId } from '@mantine/hooks';
 import { useEffect, useMemo, useRef } from 'react';
 
 import { ApiFormProps, OptionsApiForm } from '../components/forms/ApiForm';
-import { UiSizeType } from '../defaults/formatters';
 import { useModal } from './UseModal';
 
 /**
@@ -21,7 +20,7 @@ export interface ApiFormModalProps extends ApiFormProps {
   onClose?: () => void;
   onOpen?: () => void;
   closeOnClickOutside?: boolean;
-  size?: UiSizeType;
+  size?: MantineNumberSize;
 }
 
 /**
@@ -63,7 +62,7 @@ export function useApiFormModal(props: ApiFormModalProps) {
     closeOnClickOutside: formProps.closeOnClickOutside,
     size: props.size ?? 'xl',
     children: (
-      <Stack gap={'xs'}>
+      <Stack spacing={'xs'}>
         <Divider />
         <OptionsApiForm props={formProps} id={id} />
       </Stack>

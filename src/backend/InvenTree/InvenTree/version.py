@@ -3,7 +3,6 @@
 Provides information on the current InvenTree version
 """
 
-import logging
 import os
 import pathlib
 import platform
@@ -15,29 +14,18 @@ from datetime import timedelta as td
 import django
 from django.conf import settings
 
+from dulwich.repo import NotGitRepository, Repo
+
 from .api_version import INVENTREE_API_TEXT, INVENTREE_API_VERSION
 
 # InvenTree software version
-INVENTREE_SW_VERSION = '0.17.0 dev'
-
-
-logger = logging.getLogger('inventree')
-
+INVENTREE_SW_VERSION = '0.15.0 dev'
 
 # Discover git
 try:
-    from dulwich.repo import Repo
-
     main_repo = Repo(pathlib.Path(__file__).parent.parent.parent.parent.parent)
     main_commit = main_repo[main_repo.head()]
-except (ImportError, ModuleNotFoundError):
-    logger.warning(
-        'Warning: Dulwich module not found, git information will not be available.'
-    )
-    main_repo = None
-    main_commit = None
-except Exception:
-    main_repo = None
+except (NotGitRepository, FileNotFoundError):
     main_commit = None
 
 
@@ -63,18 +51,17 @@ def checkMinPythonVersion():
 
 def inventreeInstanceName():
     """Returns the InstanceName settings for the current database."""
-    from common.settings import get_global_setting
+    import common.models
 
-    return get_global_setting('INVENTREE_INSTANCE')
+    return common.models.InvenTreeSetting.get_setting('INVENTREE_INSTANCE', '')
 
 
 def inventreeInstanceTitle():
     """Returns the InstanceTitle for the current database."""
-    from common.settings import get_global_setting
+    import common.models
 
-    if get_global_setting('INVENTREE_INSTANCE_TITLE'):
-        return get_global_setting('INVENTREE_INSTANCE')
-
+    if common.models.InvenTreeSetting.get_setting('INVENTREE_INSTANCE_TITLE', False):
+        return common.models.InvenTreeSetting.get_setting('INVENTREE_INSTANCE', '')
     return 'InvenTree'
 
 
@@ -117,7 +104,7 @@ def inventreeDocUrl():
 
 def inventreeAppUrl():
     """Return URL for InvenTree app site."""
-    return 'https://docs.inventree.org/app/'
+    return f'{inventreeDocUrl()}/app/app/'
 
 
 def inventreeCreditsUrl():
@@ -135,9 +122,9 @@ def isInvenTreeUpToDate():
 
     A background task periodically queries GitHub for latest version, and stores it to the database as "_INVENTREE_LATEST_VERSION"
     """
-    from common.settings import get_global_setting
+    import common.models
 
-    latest = get_global_setting(
+    latest = common.models.InvenTreeSetting.get_setting(
         '_INVENTREE_LATEST_VERSION', backup_value=None, create=False
     )
 

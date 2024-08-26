@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-from order.status_codes import SalesOrderStatus
+from InvenTree.status_codes import SalesOrderStatus
 
 
 def add_shipment(apps, schema_editor):

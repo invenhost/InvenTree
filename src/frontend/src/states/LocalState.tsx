@@ -1,8 +1,8 @@
-import { DataTableSortStatus } from 'mantine-datatable';
+import { MantineNumberSize } from '@mantine/core';
+import { LoaderType } from '@mantine/styles/lib/theme/types/MantineTheme';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { UiSizeType } from '../defaults/formatters';
 import { HostList } from './states';
 
 interface LocalStateProps {
@@ -19,9 +19,8 @@ interface LocalStateProps {
   primaryColor: string;
   whiteColor: string;
   blackColor: string;
-  radius: UiSizeType;
-  loader: string;
-  setLoader: (value: string) => void;
+  radius: MantineNumberSize;
+  loader: LoaderType;
   lastUsedPanels: Record<string, string>;
   setLastUsedPanel: (panelKey: string) => (value: string) => void;
   tableColumnNames: Record<string, Record<string, string>>;
@@ -29,9 +28,6 @@ interface LocalStateProps {
   setTableColumnNames: (
     tableKey: string
   ) => (names: Record<string, string>) => void;
-  tableSorting: Record<string, any>;
-  getTableSorting: (tableKey: string) => DataTableSortStatus;
-  setTableSorting: (tableKey: string) => (sorting: DataTableSortStatus) => void;
   clearTableColumnNames: () => void;
   detailDrawerStack: number;
   addDetailDrawer: (value: number | false) => void;
@@ -61,9 +57,6 @@ export const useLocalState = create<LocalStateProps>()(
       blackColor: '#000',
       radius: 'xs',
       loader: 'oval',
-      setLoader(value) {
-        set({ loader: value });
-      },
       // panels
       lastUsedPanels: {},
       setLastUsedPanel: (panelKey) => (value) => {
@@ -90,19 +83,6 @@ export const useLocalState = create<LocalStateProps>()(
       },
       clearTableColumnNames: () => {
         set({ tableColumnNames: {} });
-      },
-      tableSorting: {},
-      getTableSorting: (tableKey) => {
-        return get().tableSorting[tableKey] || {};
-      },
-      setTableSorting: (tableKey) => (sorting) => {
-        // Update the table sorting for the given table
-        set({
-          tableSorting: {
-            ...get().tableSorting,
-            [tableKey]: sorting
-          }
-        });
       },
       // detail drawers
       detailDrawerStack: 0,

@@ -9,11 +9,12 @@ import {
   Tabs
 } from '@mantine/core';
 import { openConfirmModal } from '@mantine/modals';
-import { notifications, showNotification } from '@mantine/notifications';
+import { showNotification } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconDeviceFloppy,
   IconExclamationCircle,
+  IconProps,
   IconRefresh
 } from '@tabler/icons-react';
 import Split from '@uiw/react-split';
@@ -70,16 +71,25 @@ export type PreviewArea = {
   component: PreviewAreaComponent;
 };
 
-export type TemplateEditorProps = {
-  templateUrl: string;
-  printingUrl: string;
+export type TemplatePreviewProps = {
+  itemKey: string;
+  model: ModelType;
+  filters?: Record<string, any>;
+};
+
+type TemplateEditorProps = {
+  downloadUrl: string;
+  uploadUrl: string;
+  uploadKey: string;
+  preview: TemplatePreviewProps;
+  templateType: 'label' | 'report';
   editors: Editor[];
   previewAreas: PreviewArea[];
   template: TemplateI;
 };
 
-export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
-  const { templateUrl, editors, previewAreas, template } = props;
+export function TemplateEditor(props: TemplateEditorProps) {
+  const { downloadUrl, editors, previewAreas, preview } = props;
   const editorRef = useRef<EditorRef>();
   const previewRef = useRef<PreviewAreaRef>();
 
@@ -122,17 +132,13 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
   }, []);
 
   useEffect(() => {
-    if (!templateUrl) return;
+    if (!downloadUrl) return;
 
-    api.get(templateUrl).then((response: any) => {
-      if (response.data?.template) {
-        api.get(response.data.template).then((res) => {
-          codeRef.current = res.data;
-          loadCodeToEditor(res.data);
-        });
-      }
+    api.get(downloadUrl).then((res) => {
+      codeRef.current = res.data;
+      loadCodeToEditor(res.data);
     });
-  }, [templateUrl]);
+  }, [downloadUrl]);
 
   useEffect(() => {
     if (codeRef.current === undefined) return;
@@ -143,7 +149,7 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
     async (confirmed: boolean, saveTemplate: boolean = true) => {
       if (!confirmed) {
         openConfirmModal({
-          title: t`Save & Reload Preview`,
+          title: t`Save & Reload preview?`,
           children: (
             <Alert
               color="yellow"
@@ -182,14 +188,10 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
       )
         .then(() => {
           setErrorOverlay(null);
-
-          notifications.hide('template-preview');
-
           showNotification({
             title: t`Preview updated`,
             message: t`The preview has been updated successfully.`,
-            color: 'green',
-            id: 'template-preview'
+            color: 'green'
           });
         })
         .catch((error) => {
@@ -203,36 +205,25 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
   );
 
   const previewApiUrl = useMemo(
-    () =>
-      ModelInformationDict[template.model_type ?? ModelType.stockitem]
-        .api_endpoint,
-    [template]
+    () => ModelInformationDict[preview.model].api_endpoint,
+    [preview.model]
   );
-
-  const templateFilters: Record<string, string> = useMemo(() => {
-    // TODO: Extract custom filters from template (make this more generic)
-    if (template.model_type === ModelType.stockitem) {
-      return { part_detail: 'true' } as Record<string, string>;
-    }
-
-    return {};
-  }, [template]);
 
   useEffect(() => {
     api
-      .get(apiUrl(previewApiUrl), { params: { limit: 1, ...templateFilters } })
+      .get(apiUrl(previewApiUrl), { params: { limit: 1, ...preview.filters } })
       .then((res) => {
         if (res.data.results.length === 0) return;
         setPreviewItem(res.data.results[0].pk);
       });
-  }, [previewApiUrl, templateFilters]);
+  }, [previewApiUrl, preview.filters]);
 
   return (
     <Stack style={{ height: '100%', flex: '1' }}>
       <Split style={{ gap: '10px' }}>
         <Tabs
           value={editorValue}
-          onChange={async (v) => {
+          onTabChange={async (v) => {
             codeRef.current = await getCodeFromEditor();
             setEditorValue(v);
           }}
@@ -249,17 +240,16 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
               <Tabs.Tab
                 key={Editor.key}
                 value={Editor.key}
-                leftSection={<Editor.icon size="0.8rem" />}
+                icon={<Editor.icon size="0.8rem" />}
               >
                 {Editor.name}
               </Tabs.Tab>
             ))}
 
-            <Group justify="right" style={{ flex: '1' }} wrap="nowrap">
+            <Group position="right" style={{ flex: '1' }} noWrap>
               <SplitButton
                 loading={isPreviewLoading}
                 defaultSelected="preview_save"
-                name="preview-options"
                 options={[
                   {
                     key: 'preview',
@@ -271,7 +261,7 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
                   },
                   {
                     key: 'preview_save',
-                    name: t`Save & Reload Preview`,
+                    name: t`Save & Reload preview`,
                     tooltip: t`Save the current template and reload the preview`,
                     icon: IconDeviceFloppy,
                     onClick: () => updatePreview(hasSaveConfirmed),
@@ -299,7 +289,7 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
 
         <Tabs
           value={previewValue}
-          onChange={setPreviewValue}
+          onTabChange={setPreviewValue}
           style={{
             minWidth: '200px',
             display: 'flex',
@@ -311,7 +301,7 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
               <Tabs.Tab
                 key={PreviewArea.key}
                 value={PreviewArea.key}
-                leftSection={<PreviewArea.icon size="0.8rem" />}
+                icon={<PreviewArea.icon size="0.8rem" />}
               >
                 {PreviewArea.name}
               </Tabs.Tab>
@@ -330,10 +320,10 @@ export function TemplateEditor(props: Readonly<TemplateEditorProps>) {
                 field_type: 'related field',
                 api_url: apiUrl(previewApiUrl),
                 description: '',
-                label: t`Select instance to preview`,
-                model: template.model_type,
+                label: t`Select` + ' ' + preview.model + ' ' + t`to preview`,
+                model: preview.model,
                 value: previewItem,
-                filters: templateFilters,
+                filters: preview.filters,
                 onValueChange: (value) => setPreviewItem(value)
               }}
             />

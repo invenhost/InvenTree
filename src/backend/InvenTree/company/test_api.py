@@ -2,6 +2,8 @@
 
 from django.urls import reverse
 
+from rest_framework import status
+
 from InvenTree.unit_test import InvenTreeAPITestCase
 from part.models import Part
 
@@ -55,20 +57,22 @@ class CompanyTest(InvenTreeAPITestCase):
     def test_company_detail(self):
         """Tests for the Company detail endpoint."""
         url = reverse('api-company-detail', kwargs={'pk': self.acme.pk})
-        response = self.get(url, expected_code=200)
+        response = self.get(url)
 
-        self.assertIn('name', response.data.keys())
         self.assertEqual(response.data['name'], 'ACME')
 
         # Change the name of the company
         # Note we should not have the correct permissions (yet)
         data = response.data
+        response = self.client.patch(url, data, format='json', expected_code=400)
+
+        self.assignRole('company.change')
 
         # Update the name and set the currency to a valid value
         data['name'] = 'ACMOO'
         data['currency'] = 'NZD'
 
-        response = self.patch(url, data, expected_code=200)
+        response = self.client.patch(url, data, format='json', expected_code=200)
 
         self.assertEqual(response.data['name'], 'ACMOO')
         self.assertEqual(response.data['currency'], 'NZD')
@@ -126,7 +130,7 @@ class CompanyTest(InvenTreeAPITestCase):
             expected_code=400,
         )
 
-        self.assertIn('currency', response.data)
+        self.assertTrue('currency' in response.data)
 
     def test_company_active(self):
         """Test that the 'active' value and filter works."""
@@ -158,7 +162,7 @@ class CompanyTest(InvenTreeAPITestCase):
 class ContactTest(InvenTreeAPITestCase):
     """Tests for the Contact models."""
 
-    roles = ['purchase_order.view']
+    roles = []
 
     @classmethod
     def setUpTestData(cls):
@@ -264,7 +268,7 @@ class ContactTest(InvenTreeAPITestCase):
 class AddressTest(InvenTreeAPITestCase):
     """Test cases for Address API endpoints."""
 
-    roles = ['purchase_order.view']
+    roles = []
 
     @classmethod
     def setUpTestData(cls):
@@ -392,7 +396,8 @@ class ManufacturerTest(InvenTreeAPITestCase):
 
         # Create manufacturer part
         data = {'part': 1, 'manufacturer': 7, 'MPN': 'MPN_TEST'}
-        response = self.post(url, data, expected_code=201)
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['MPN'], 'MPN_TEST')
 
         # Filter by manufacturer
@@ -415,7 +420,9 @@ class ManufacturerTest(InvenTreeAPITestCase):
         # Change the MPN
         data = {'MPN': 'MPN-TEST-123'}
 
-        response = self.patch(url, data)
+        response = self.client.patch(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['MPN'], 'MPN-TEST-123')
 
     def test_manufacturer_part_search(self):
@@ -452,7 +459,8 @@ class ManufacturerTest(InvenTreeAPITestCase):
             'link': 'https://www.axel-larsson.se/Exego.aspx?p_id=341&ArtNr=0804020E',
         }
 
-        response = self.post(url, data)
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Check link is not modified
         self.assertEqual(

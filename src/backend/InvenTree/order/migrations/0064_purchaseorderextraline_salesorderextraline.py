@@ -86,7 +86,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'abstract': False,
-                'verbose_name': 'Sales Order Extra Line',
             },
         ),
         migrations.CreateModel(
@@ -104,7 +103,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'abstract': False,
-                'verbose_name': 'Purchase Order Extra Line',
             },
         ),
         migrations.RunPython(convert_line_items, reverse_code=nunconvert_line_items),

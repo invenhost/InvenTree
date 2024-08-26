@@ -8,7 +8,6 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch.dispatcher import receiver
 
 import InvenTree.exceptions
-from common.settings import get_global_setting
 from InvenTree.ready import canAppAccessDatabase, isImportingData
 from InvenTree.tasks import offload_task
 from plugin.registry import registry
@@ -22,7 +21,13 @@ def trigger_event(event, *args, **kwargs):
     This event will be stored in the database,
     and the worker will respond to it later on.
     """
-    if not get_global_setting('ENABLE_PLUGINS_EVENTS', False):
+    from common.models import InvenTreeSetting
+
+    if not settings.PLUGINS_ENABLED:
+        # Do nothing if plugins are not enabled
+        return  # pragma: no cover
+
+    if not InvenTreeSetting.get_setting('ENABLE_PLUGINS_EVENTS', False):
         # Do nothing if plugin events are not enabled
         return
 
@@ -49,13 +54,12 @@ def register_event(event, *args, **kwargs):
     Note: This function is processed by the background worker,
     as it performs multiple database access operations.
     """
+    from common.models import InvenTreeSetting
+
     logger.debug("Registering triggered event: '%s'", event)
 
     # Determine if there are any plugins which are interested in responding
-    if settings.PLUGIN_TESTING or get_global_setting('ENABLE_PLUGINS_EVENTS'):
-        # Check if the plugin registry needs to be reloaded
-        registry.check_reload()
-
+    if settings.PLUGIN_TESTING or InvenTreeSetting.get_setting('ENABLE_PLUGINS_EVENTS'):
         with transaction.atomic():
             for slug, plugin in registry.plugins.items():
                 if not plugin.mixin_enabled('events'):
@@ -131,7 +135,6 @@ def allow_table_event(table_name):
         'socialaccount_',
         'user_',
         'users_',
-        'importer_',
     ]
 
     if any(table_name.startswith(prefix) for prefix in ignore_prefixes):

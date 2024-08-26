@@ -166,5 +166,3 @@ SEARCH_ORDER_FILTER_ALIAS = [
 ]
 
 ORDER_FILTER = [rest_filters.DjangoFilterBackend, filters.OrderingFilter]
-
-ORDER_FILTER_ALIAS = [rest_filters.DjangoFilterBackend, InvenTreeOrderingFilter]

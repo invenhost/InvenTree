@@ -12,10 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterModelOptions(
             name='address',
-            options={
-                'verbose_name': 'Address',
-                'verbose_name_plural': 'Addresses'
-            },
+            options={'verbose_name_plural': 'Addresses'},
         ),
         migrations.AlterField(
             model_name='address',

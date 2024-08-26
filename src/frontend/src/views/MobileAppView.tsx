@@ -18,7 +18,7 @@ export default function MobileAppView() {
       <Center h="100vh">
         <Container>
           <Stack>
-            <Title c="red">
+            <Title color="red">
               <Trans>Mobile viewport detected</Trans>
             </Title>
             <Text>

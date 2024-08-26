@@ -8,7 +8,6 @@ import {
   Loader,
   Radio,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -16,10 +15,9 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconAt } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { api, queryClient } from '../../../../App';
-import { YesNoButton } from '../../../../components/buttons/YesNoButton';
 import { PlaceholderPill } from '../../../../components/items/Placeholder';
 import { ApiEndpoints } from '../../../../enums/ApiEndpoints';
 import { apiUrl } from '../../../../states/ApiState';
@@ -87,16 +85,11 @@ export function SecurityContent() {
           )}
         </>
       )}
-
-      <Title order={5}>
-        <Trans>Token</Trans>
-      </Title>
-      <TokenContent />
     </Stack>
   );
 }
 
-function EmailContent() {
+function EmailContent({}: {}) {
   const [value, setValue] = useState<string>('');
   const [newEmailValue, setNewEmailValue] = useState('');
   const [user] = useUserState((state) => [state.user]);
@@ -144,7 +137,7 @@ function EmailContent() {
                 key={link.id}
                 value={String(link.id)}
                 label={
-                  <Group justify="space-between">
+                  <Group position="apart">
                     {link.email}
                     {link.primary && (
                       <Badge color="blue">
@@ -175,7 +168,7 @@ function EmailContent() {
           <TextInput
             label={t`E-Mail`}
             placeholder={t`E-Mail address`}
-            leftSection={<IconAt />}
+            icon={<IconAt />}
             value={newEmailValue}
             onChange={(event) => setNewEmailValue(event.currentTarget.value)}
           />
@@ -211,7 +204,7 @@ function EmailContent() {
 
 function SsoContent({ dataProvider }: { dataProvider: any | undefined }) {
   const [value, setValue] = useState<string>('');
-  const [currentProviders, setCurrentProviders] = useState<[]>();
+  const [currentProviders, setcurrentProviders] = useState<[]>();
   const { isLoading, data } = useQuery({
     queryKey: ['sso-list'],
     queryFn: () =>
@@ -232,7 +225,7 @@ function SsoContent({ dataProvider }: { dataProvider: any | undefined }) {
     // remove providers that are used currently
     let newData = dataProvider.providers;
     newData = newData.filter(isAlreadyInUse);
-    setCurrentProviders(newData);
+    setcurrentProviders(newData);
   }, [dataProvider, data]);
 
   function removeProvider() {
@@ -258,7 +251,7 @@ function SsoContent({ dataProvider }: { dataProvider: any | undefined }) {
         variant="outline"
         disabled={!provider.configured}
       >
-        <Group justify="space-between">
+        <Group position="apart">
           {provider.display_name}
           {provider.configured == false && <IconAlertCircle />}
         </Group>
@@ -315,7 +308,7 @@ function SsoContent({ dataProvider }: { dataProvider: any | undefined }) {
             {currentProviders === undefined ? (
               <Trans>Loading</Trans>
             ) : (
-              <Stack gap="xs">
+              <Stack spacing="xs">
                 {currentProviders.map((provider: any) => (
                   <ProviderButton key={provider.id} provider={provider} />
                 ))}
@@ -328,93 +321,11 @@ function SsoContent({ dataProvider }: { dataProvider: any | undefined }) {
   );
 }
 
-function MfaContent() {
+function MfaContent({}: {}) {
   return (
     <>
       MFA Details
       <PlaceholderPill />
     </>
-  );
-}
-
-function TokenContent() {
-  const { isLoading, data, refetch } = useQuery({
-    queryKey: ['token-list'],
-    queryFn: () =>
-      api.get(apiUrl(ApiEndpoints.user_tokens)).then((res) => res.data)
-  });
-
-  function revokeToken(id: string) {
-    api
-      .delete(apiUrl(ApiEndpoints.user_tokens, id))
-      .then(() => {
-        refetch();
-      })
-      .catch((res) => console.log(res.data));
-  }
-  const rows = useMemo(() => {
-    if (isLoading || data === undefined) return null;
-    return data.map((token: any) => (
-      <Table.Tr key={token.id}>
-        <Table.Td>
-          <YesNoButton value={token.active} />
-        </Table.Td>
-        <Table.Td>{token.expiry}</Table.Td>
-        <Table.Td>{token.last_seen}</Table.Td>
-        <Table.Td>{token.token}</Table.Td>
-        <Table.Td>{token.name}</Table.Td>
-        <Table.Td>
-          {token.in_use ? (
-            <Trans>Token is used - no actions</Trans>
-          ) : (
-            <Button
-              onClick={() => revokeToken(token.id)}
-              color="red"
-              disabled={!token.active}
-            >
-              <Trans>Revoke</Trans>
-            </Button>
-          )}
-        </Table.Td>
-      </Table.Tr>
-    ));
-  }, [data, isLoading]);
-
-  /* renderer */
-  if (isLoading) return <Loader />;
-
-  if (data.length == 0)
-    return (
-      <Alert icon={<IconAlertCircle size="1rem" />} color="green">
-        <Trans>No tokens configured</Trans>
-      </Alert>
-    );
-
-  return (
-    <Table stickyHeader striped highlightOnHover withTableBorder>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>
-            <Trans>Active</Trans>
-          </Table.Th>
-          <Table.Th>
-            <Trans>Expiry</Trans>
-          </Table.Th>
-          <Table.Th>
-            <Trans>Last Seen</Trans>
-          </Table.Th>
-          <Table.Th>
-            <Trans>Token</Trans>
-          </Table.Th>
-          <Table.Th>
-            <Trans>Name</Trans>
-          </Table.Th>
-          <Table.Th>
-            <Trans>Actions</Trans>
-          </Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>{rows}</Table.Tbody>
-    </Table>
   );
 }

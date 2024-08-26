@@ -425,7 +425,7 @@
     <tr>
         <td><span class='fas fa-info'></span></td>
         <td>{% trans "Status" %}</td>
-        <td>{% display_status_label 'stock' item.status_custom_key item.status %}</td>
+        <td>{% status_label 'stock' item.status %}</td>
     </tr>
     {% if item.expiry_date %}
     <tr>
@@ -494,14 +494,19 @@ $('#stock-uninstall').click(function() {
 });
 
 $("#stock-test-report").click(function() {
-    printReports('stockitem', [{{ item.pk }}]);
+    printReports({
+        items: [{{ item.pk }}],
+        key: 'item',
+        url: '{% url "api-stockitem-testreport-list" %}',
+    });
 });
 
 $("#print-label").click(function() {
     printLabels({
         items: [{{ item.pk }}],
-        model_type: 'stockitem',
         singular_name: '{% trans "stock item" escape %}',
+        url: '{% url "api-stockitem-label-list" %}',
+        key: 'item',
     });
 });
 
@@ -534,7 +539,7 @@ $('#stock-edit-status').click(function () {
 $("#show-qr-code").click(function() {
     showQRDialog(
         '{% trans "Stock Item QR Code" escape %}',
-        '{{ item.barcode }}',
+        '{"stockitem": {{ item.pk }} }',
     );
 });
 
@@ -646,6 +651,7 @@ $("#stock-return-from-customer").click(function() {
                 {% endif %}
                 tree_picker: {
                     url: '{% url "api-location-tree" %}',
+                    default_icon: global_settings.STOCK_LOCATION_DEFAULT_ICON,
                 },
             },
             notes: {

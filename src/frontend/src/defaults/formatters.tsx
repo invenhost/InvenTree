@@ -1,4 +1,3 @@
-import { MantineSize } from '@mantine/core';
 import dayjs from 'dayjs';
 
 import {
@@ -6,13 +5,13 @@ import {
   useUserSettingsState
 } from '../states/SettingsState';
 
-interface FormatDecmimalOptionsInterface {
+interface formatDecmimalOptionsType {
   digits?: number;
   minDigits?: number;
   locale?: string;
 }
 
-interface FormatCurrencyOptionsInterface {
+interface formatCurrencyOptionsType {
   digits?: number;
   minDigits?: number;
   currency?: string;
@@ -22,7 +21,7 @@ interface FormatCurrencyOptionsInterface {
 
 export function formatDecimal(
   value: number | null | undefined,
-  options: FormatDecmimalOptionsInterface = {}
+  options: formatDecmimalOptionsType = {}
 ) {
   let locale = options.locale || navigator.language || 'en-US';
 
@@ -30,11 +29,7 @@ export function formatDecimal(
     return value;
   }
 
-  let formatter = new Intl.NumberFormat(locale, {
-    style: 'decimal',
-    maximumFractionDigits: options.digits ?? 6,
-    minimumFractionDigits: options.minDigits ?? 0
-  });
+  let formatter = new Intl.NumberFormat(locale);
 
   return formatter.format(value);
 }
@@ -49,7 +44,7 @@ export function formatDecimal(
  */
 export function formatCurrency(
   value: number | string | null | undefined,
-  options: FormatCurrencyOptionsInterface = {}
+  options: formatCurrencyOptionsType = {}
 ) {
   if (value == null || value == undefined) {
     return null;
@@ -81,8 +76,8 @@ export function formatCurrency(
   let formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
-    maximumFractionDigits: Math.max(minDigits, maxDigits),
-    minimumFractionDigits: Math.min(minDigits, maxDigits)
+    maximumFractionDigits: maxDigits,
+    minimumFractionDigits: minDigits
   });
 
   return formatter.format(value);
@@ -94,7 +89,7 @@ export function formatCurrency(
 export function formatPriceRange(
   minValue: number | null,
   maxValue: number | null,
-  options: FormatCurrencyOptionsInterface = {}
+  options: formatCurrencyOptionsType = {}
 ) {
   // If neither values are provided, return a dash
   if (minValue == null && maxValue == null) {
@@ -121,23 +116,7 @@ export function formatPriceRange(
   )}`;
 }
 
-/*
- * Format a file size (in bytes) into a human-readable format
- */
-export function formatFileSize(size: number) {
-  const suffixes: string[] = ['B', 'KB', 'MB', 'GB'];
-
-  let idx = 0;
-
-  while (size > 1024 && idx < suffixes.length) {
-    size /= 1024;
-    idx++;
-  }
-
-  return `${size.toFixed(2)} ${suffixes[idx]}`;
-}
-
-interface FormatDateOptionsInterface {
+interface renderDateOptionsType {
   showTime?: boolean;
   showSeconds?: boolean;
 }
@@ -148,10 +127,7 @@ interface FormatDateOptionsInterface {
  * The provided "date" variable is a string, nominally ISO format e.g. 2022-02-22
  * The user-configured setting DATE_DISPLAY_FORMAT determines how the date should be displayed.
  */
-export function formatDate(
-  date: string,
-  options: FormatDateOptionsInterface = {}
-) {
+export function renderDate(date: string, options: renderDateOptionsType = {}) {
   if (!date) {
     return '-';
   }
@@ -175,5 +151,3 @@ export function formatDate(
     return date;
   }
 }
-
-export type UiSizeType = MantineSize | string | number;

@@ -3,6 +3,7 @@
 Provides URL endpoints for:
 - Display / Create / Edit / Delete PartCategory
 - Display / Create / Edit / Delete Part
+- Create / Edit / Delete PartAttachment
 - Display / Create / Edit / Delete SupplierPart
 """
 

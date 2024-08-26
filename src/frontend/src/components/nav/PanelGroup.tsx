@@ -10,21 +10,18 @@ import {
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarRightCollapse
 } from '@tabler/icons-react';
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Navigate,
   Route,
   Routes,
-  useLocation,
   useNavigate,
   useParams
 } from 'react-router-dom';
 
-import { identifierString } from '../../functions/conversion';
-import { cancelEvent } from '../../functions/events';
-import { navigateToLink } from '../../functions/navigation';
 import { useLocalState } from '../../states/LocalState';
-import { Boundary } from '../Boundary';
+import { PlaceholderPanel } from '../items/Placeholder';
 import { StylishText } from '../items/StylishText';
 
 /**
@@ -34,7 +31,7 @@ export type PanelType = {
   name: string;
   label: string;
   icon?: ReactNode;
-  content: ReactNode;
+  content?: ReactNode;
   hidden?: boolean;
   disabled?: boolean;
   showHeadline?: boolean;
@@ -54,8 +51,7 @@ function BasePanelGroup({
   onPanelChange,
   selectedPanel,
   collapsible = true
-}: Readonly<PanelProps>): ReactNode {
-  const location = useLocation();
+}: PanelProps): ReactNode {
   const navigate = useNavigate();
   const { panel } = useParams();
 
@@ -76,27 +72,19 @@ function BasePanelGroup({
   }, [setLastUsedPanel]);
 
   // Callback when the active panel changes
-  const handlePanelChange = useCallback(
-    (panel: string | null, event?: any) => {
-      if (activePanels.findIndex((p) => p.name === panel) === -1) {
-        panel = '';
-      }
+  function handlePanelChange(panel: string) {
+    if (activePanels.findIndex((p) => p.name === panel) === -1) {
+      setLastUsedPanel('');
+      return navigate('../');
+    }
 
-      if (event && (event?.ctrlKey || event?.shiftKey)) {
-        const url = `${location.pathname}/../${panel}`;
-        cancelEvent(event);
-        navigateToLink(url, navigate, event);
-      } else {
-        navigate(`../${panel}`);
-      }
+    navigate(`../${panel}`);
 
-      // Optionally call external callback hook
-      if (panel && onPanelChange) {
-        onPanelChange(panel);
-      }
-    },
-    [activePanels, setLastUsedPanel, navigate, location, onPanelChange]
-  );
+    // Optionally call external callback hook
+    if (onPanelChange) {
+      onPanelChange(panel);
+    }
+  }
 
   // if the selected panel state changes update the current panel
   useEffect(() => {
@@ -116,92 +104,81 @@ function BasePanelGroup({
   const [expanded, setExpanded] = useState<boolean>(true);
 
   return (
-    <Boundary label={`PanelGroup-${pageKey}`}>
-      <Paper p="sm" radius="xs" shadow="xs">
-        <Tabs value={panel} orientation="vertical" keepMounted={false}>
-          <Tabs.List justify="left">
-            {panels.map(
-              (panel) =>
-                !panel.hidden && (
-                  <Tooltip
-                    label={panel.label}
-                    key={panel.name}
-                    disabled={expanded}
-                    position="right"
-                  >
-                    <Tabs.Tab
-                      p="xs"
-                      value={panel.name}
-                      leftSection={panel.icon}
-                      hidden={panel.hidden}
-                      disabled={panel.disabled}
-                      style={{ cursor: panel.disabled ? 'unset' : 'pointer' }}
-                      onClick={(event: any) =>
-                        handlePanelChange(panel.name, event)
-                      }
-                    >
-                      {expanded && panel.label}
-                    </Tabs.Tab>
-                  </Tooltip>
-                )
-            )}
-            {collapsible && (
-              <ActionIcon
-                style={{
-                  paddingLeft: '10px'
-                }}
-                onClick={() => setExpanded(!expanded)}
-                variant="transparent"
-                size="md"
-              >
-                {expanded ? (
-                  <IconLayoutSidebarLeftCollapse opacity={0.5} />
-                ) : (
-                  <IconLayoutSidebarRightCollapse opacity={0.5} />
-                )}
-              </ActionIcon>
-            )}
-          </Tabs.List>
+    <Paper p="sm" radius="xs" shadow="xs">
+      <Tabs
+        value={panel}
+        orientation="vertical"
+        onTabChange={handlePanelChange}
+        keepMounted={false}
+      >
+        <Tabs.List position="left">
           {panels.map(
             (panel) =>
               !panel.hidden && (
-                <Tabs.Panel
+                <Tooltip
+                  label={panel.label}
                   key={panel.name}
-                  value={panel.name}
-                  aria-label={`nav-panel-${identifierString(
-                    `${pageKey}-${panel.name}`
-                  )}`}
-                  p="sm"
-                  style={{
-                    overflowX: 'scroll',
-                    width: '100%'
-                  }}
+                  disabled={expanded}
                 >
-                  <Stack gap="md">
-                    {panel.showHeadline !== false && (
-                      <>
-                        <StylishText size="xl">{panel.label}</StylishText>
-                        <Divider />
-                      </>
-                    )}
-                    <Boundary label={`PanelContent-${panel.name}`}>
-                      {panel.content}
-                    </Boundary>
-                  </Stack>
-                </Tabs.Panel>
+                  <Tabs.Tab
+                    p="xs"
+                    value={panel.name}
+                    //                    icon={(<InvenTreeIcon icon={panel.name}/>)}  // Enable when implementing Icon manager everywhere
+                    icon={panel.icon}
+                    hidden={panel.hidden}
+                    disabled={panel.disabled}
+                    style={{ cursor: panel.disabled ? 'unset' : 'pointer' }}
+                  >
+                    {expanded && panel.label}
+                  </Tabs.Tab>
+                </Tooltip>
               )
           )}
-        </Tabs>
-      </Paper>
-    </Boundary>
+          {collapsible && (
+            <ActionIcon
+              style={{
+                paddingLeft: '10px'
+              }}
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? (
+                <IconLayoutSidebarLeftCollapse opacity={0.5} />
+              ) : (
+                <IconLayoutSidebarRightCollapse opacity={0.5} />
+              )}
+            </ActionIcon>
+          )}
+        </Tabs.List>
+        {panels.map(
+          (panel) =>
+            !panel.hidden && (
+              <Tabs.Panel
+                key={panel.name}
+                value={panel.name}
+                p="sm"
+                style={{
+                  overflowX: 'scroll',
+                  width: '100%'
+                }}
+              >
+                <Stack spacing="md">
+                  {panel.showHeadline !== false && (
+                    <>
+                      <StylishText size="xl">{panel.label}</StylishText>
+                      <Divider />
+                    </>
+                  )}
+                  {panel.content ?? <PlaceholderPanel />}
+                </Stack>
+              </Tabs.Panel>
+            )
+        )}
+      </Tabs>
+    </Paper>
   );
 }
 
-function IndexPanelComponent({
-  pageKey,
-  selectedPanel,
-  panels
-}: Readonly<PanelProps>) {
+function IndexPanelComponent({ pageKey, selectedPanel, panels }: PanelProps) {
   const lastUsedPanel = useLocalState((state) => {
     const panelName =
       selectedPanel || state.lastUsedPanels[pageKey] || panels[0]?.name;
@@ -226,7 +203,7 @@ function IndexPanelComponent({
  * @param onPanelChange - Callback when the active panel changes
  * @param collapsible - If true, the panel group can be collapsed (defaults to true)
  */
-export function PanelGroup(props: Readonly<PanelProps>) {
+export function PanelGroup(props: PanelProps) {
   return (
     <Routes>
       <Route index element={<IndexPanelComponent {...props} />} />

@@ -1,9 +1,13 @@
 """Generic models which provide extra functionality over base Django model types."""
 
 import logging
+import os
 from datetime import datetime
+from io import BytesIO
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -16,11 +20,11 @@ from error_report.models import Error
 from mptt.exceptions import InvalidMove
 from mptt.models import MPTTModel, TreeForeignKey
 
-import common.settings
 import InvenTree.fields
 import InvenTree.format
 import InvenTree.helpers
 import InvenTree.helpers_model
+from InvenTree.sanitizer import sanitize_svg
 
 logger = logging.getLogger('inventree')
 
@@ -93,7 +97,7 @@ class PluginValidationMixin(DiffMixin):
                     return
             except ValidationError as exc:
                 raise exc
-            except Exception:
+            except Exception as exc:
                 # Log the exception to the database
                 import InvenTree.exceptions
 
@@ -117,20 +121,6 @@ class PluginValidationMixin(DiffMixin):
         """
         self.run_plugin_validation()
         super().save(*args, **kwargs)
-
-    def delete(self):
-        """Run plugin validation on model delete.
-
-        Allows plugins to prevent model instances from being deleted.
-
-        Note: Each plugin may raise a ValidationError to prevent deletion.
-        """
-        from plugin.registry import registry
-
-        for plugin in registry.with_mixin('validation'):
-            plugin.validate_model_deletion(self)
-
-        super().delete()
 
 
 class MetadataMixin(models.Model):
@@ -214,14 +204,11 @@ class MetadataMixin(models.Model):
             self.save()
 
 
-class DataImportMixin:
+class DataImportMixin(object):
     """Model mixin class which provides support for 'data import' functionality.
 
     Models which implement this mixin should provide information on the fields available for import
     """
-
-    # TODO: This mixin should be removed after https://github.com/inventree/InvenTree/pull/6911 is implemented
-    # TODO: This approach to data import functionality is *outdated*
 
     # Define a map of fields available for import
     IMPORT_FIELDS = {}
@@ -303,7 +290,10 @@ class ReferenceIndexingMixin(models.Model):
         if cls.REFERENCE_PATTERN_SETTING is None:
             return ''
 
-        return common.settings.get_global_setting(
+        # import at function level to prevent cyclic imports
+        from common.models import InvenTreeSetting
+
+        return InvenTreeSetting.get_setting(
             cls.REFERENCE_PATTERN_SETTING, create=False
         ).strip()
 
@@ -499,71 +489,207 @@ class InvenTreeMetadataModel(MetadataMixin, InvenTreeModel):
         abstract = True
 
 
-class InvenTreeAttachmentMixin:
+def rename_attachment(instance, filename):
+    """Function for renaming an attachment file. The subdirectory for the uploaded file is determined by the implementing class.
+
+    Args:
+        instance: Instance of a PartAttachment object
+        filename: name of uploaded file
+
+    Returns:
+        path to store file, format: '<subdir>/<id>/filename'
+    """
+    # Construct a path to store a file attachment for a given model type
+    return os.path.join(instance.getSubdir(), filename)
+
+
+class InvenTreeAttachment(InvenTreeModel):
     """Provides an abstracted class for managing file attachments.
 
-    Links the implementing model to the common.models.Attachment table,
-    and provides the following methods:
+    An attachment can be either an uploaded file, or an external URL
 
-    - attachments: Return a queryset containing all attachments for this model
+    Attributes:
+        attachment: Upload file
+        link: External URL
+        comment: String descriptor for the attachment
+        user: User associated with file upload
+        upload_date: Date the file was uploaded
     """
 
-    def delete(self):
-        """Handle the deletion of a model instance.
+    class Meta:
+        """Metaclass options. Abstract ensures no database table is created."""
 
-        Before deleting the model instance, delete any associated attachments.
+        abstract = True
+
+    def getSubdir(self):
+        """Return the subdirectory under which attachments should be stored.
+
+        Note: Re-implement this for each subclass of InvenTreeAttachment
         """
-        self.attachments.all().delete()
-        super().delete()
+        return 'attachments'
+
+    def save(self, *args, **kwargs):
+        """Provide better validation error."""
+        # Either 'attachment' or 'link' must be specified!
+        if not self.attachment and not self.link:
+            raise ValidationError({
+                'attachment': _('Missing file'),
+                'link': _('Missing external link'),
+            })
+
+        if self.attachment and self.attachment.name.lower().endswith('.svg'):
+            self.attachment.file.file = self.clean_svg(self.attachment)
+
+        super().save(*args, **kwargs)
+
+    def clean_svg(self, field):
+        """Sanitize SVG file before saving."""
+        cleaned = sanitize_svg(field.file.read())
+        return BytesIO(bytes(cleaned, 'utf8'))
+
+    def __str__(self):
+        """Human name for attachment."""
+        if self.attachment is not None:
+            return os.path.basename(self.attachment.name)
+        return str(self.link)
+
+    attachment = models.FileField(
+        upload_to=rename_attachment,
+        verbose_name=_('Attachment'),
+        help_text=_('Select file to attach'),
+        blank=True,
+        null=True,
+    )
+
+    link = InvenTree.fields.InvenTreeURLField(
+        blank=True,
+        null=True,
+        verbose_name=_('Link'),
+        help_text=_('Link to external URL'),
+    )
+
+    comment = models.CharField(
+        blank=True,
+        max_length=100,
+        verbose_name=_('Comment'),
+        help_text=_('File comment'),
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_('User'),
+        help_text=_('User'),
+    )
+
+    upload_date = models.DateField(
+        auto_now_add=True, null=True, blank=True, verbose_name=_('upload date')
+    )
 
     @property
-    def attachments(self):
-        """Return a queryset containing all attachments for this model."""
-        return self.attachments_for_model().filter(model_id=self.pk)
+    def basename(self):
+        """Base name/path for attachment."""
+        if self.attachment:
+            return os.path.basename(self.attachment.name)
+        return None
 
-    @classmethod
-    def check_attachment_permission(cls, permission, user) -> bool:
-        """Check if the user has permission to perform the specified action on the attachment.
+    @basename.setter
+    def basename(self, fn):
+        """Function to rename the attachment file.
 
-        The default implementation runs a permission check against *this* model class,
-        but this can be overridden in the implementing class if required.
-
-        Arguments:
-            permission: The permission to check (add / change / view / delete)
-            user: The user to check against
-
-        Returns:
-            bool: True if the user has permission, False otherwise
+        - Filename cannot be empty
+        - Filename cannot contain illegal characters
+        - Filename must specify an extension
+        - Filename cannot match an existing file
         """
-        perm = f'{cls._meta.app_label}.{permission}_{cls._meta.model_name}'
-        return user.has_perm(perm)
+        fn = fn.strip()
 
-    def attachments_for_model(self):
-        """Return all attachments for this model class."""
-        from common.models import Attachment
+        if len(fn) == 0:
+            raise ValidationError(_('Filename must not be empty'))
 
-        model_type = self.__class__.__name__.lower()
+        attachment_dir = settings.MEDIA_ROOT.joinpath(self.getSubdir())
+        old_file = settings.MEDIA_ROOT.joinpath(self.attachment.name)
+        new_file = settings.MEDIA_ROOT.joinpath(self.getSubdir(), fn).resolve()
 
-        return Attachment.objects.filter(model_type=model_type)
+        # Check that there are no directory tricks going on...
+        if new_file.parent != attachment_dir:
+            logger.error(
+                "Attempted to rename attachment outside valid directory: '%s'", new_file
+            )
+            raise ValidationError(_('Invalid attachment directory'))
 
-    def create_attachment(self, attachment=None, link=None, comment='', **kwargs):
-        """Create an attachment / link for this model."""
-        from common.models import Attachment
+        # Ignore further checks if the filename is not actually being renamed
+        if new_file == old_file:
+            return
 
-        kwargs['attachment'] = attachment
-        kwargs['link'] = link
-        kwargs['comment'] = comment
-        kwargs['model_type'] = self.__class__.__name__.lower()
-        kwargs['model_id'] = self.pk
+        forbidden = [
+            "'",
+            '"',
+            '#',
+            '@',
+            '!',
+            '&',
+            '^',
+            '<',
+            '>',
+            ':',
+            ';',
+            '/',
+            '\\',
+            '|',
+            '?',
+            '*',
+            '%',
+            '~',
+            '`',
+        ]
 
-        Attachment.objects.create(**kwargs)
+        for c in forbidden:
+            if c in fn:
+                raise ValidationError(_(f"Filename contains illegal character '{c}'"))
+
+        if len(fn.split('.')) < 2:
+            raise ValidationError(_('Filename missing extension'))
+
+        if not old_file.exists():
+            logger.error(
+                "Trying to rename attachment '%s' which does not exist", old_file
+            )
+            return
+
+        if new_file.exists():
+            raise ValidationError(_('Attachment with this filename already exists'))
+
+        try:
+            os.rename(old_file, new_file)
+            self.attachment.name = os.path.join(self.getSubdir(), fn)
+            self.save()
+        except Exception:
+            raise ValidationError(_('Error renaming file'))
+
+    def fully_qualified_url(self):
+        """Return a 'fully qualified' URL for this attachment.
+
+        - If the attachment is a link to an external resource, return the link
+        - If the attachment is an uploaded file, return the fully qualified media URL
+        """
+        if self.link:
+            return self.link
+
+        if self.attachment:
+            media_url = InvenTree.helpers.getMediaUrl(self.attachment.url)
+            return InvenTree.helpers_model.construct_absolute_url(media_url)
+
+        return ''
 
 
 class InvenTreeTree(MetadataMixin, PluginValidationMixin, MPTTModel):
     """Provides an abstracted self-referencing tree model for data categories.
 
     - Each Category has one parent Category, which can be blank (for a top-level Category).
-    - Each Category can have zero-or-more child Category(y/ies)
+    - Each Category can have zero-or-more child Categor(y/ies)
 
     Attributes:
         name: brief name
@@ -574,9 +700,6 @@ class InvenTreeTree(MetadataMixin, PluginValidationMixin, MPTTModel):
     # How items (not nodes) are hooked into the tree
     # e.g. for StockLocation, this value is 'location'
     ITEM_PARENT_KEY = None
-
-    # Extra fields to include in the get_path result. E.g. icon
-    EXTRA_PATH_FIELDS = []
 
     class Meta:
         """Metaclass defines extra model properties."""
@@ -783,7 +906,7 @@ class InvenTreeTree(MetadataMixin, PluginValidationMixin, MPTTModel):
         on_delete=models.DO_NOTHING,
         blank=True,
         null=True,
-        verbose_name='parent',
+        verbose_name=_('parent'),
         related_name='children',
     )
 
@@ -871,14 +994,7 @@ class InvenTreeTree(MetadataMixin, PluginValidationMixin, MPTTModel):
             name: <name>,
         }
         """
-        return [
-            {
-                'pk': item.pk,
-                'name': item.name,
-                **{k: getattr(item, k, None) for k in self.EXTRA_PATH_FIELDS},
-            }
-            for item in self.path
-        ]
+        return [{'pk': item.pk, 'name': item.name} for item in self.path]
 
     def __str__(self):
         """String representation of a category is the full path to that category."""
@@ -901,30 +1017,6 @@ class InvenTreeNotesMixin(models.Model):
 
         abstract = True
 
-    def delete(self):
-        """Custom delete method for InvenTreeNotesMixin.
-
-        - Before deleting the object, check if there are any uploaded images associated with it.
-        - If so, delete the notes first
-        """
-        from common.models import NotesImage
-
-        images = NotesImage.objects.filter(
-            model_type=self.__class__.__name__.lower(), model_id=self.pk
-        )
-
-        if images.exists():
-            logger.info(
-                'Deleting %s uploaded images associated with %s <%s>',
-                images.count(),
-                self.__class__.__name__,
-                self.pk,
-            )
-
-            images.delete()
-
-        super().delete()
-
     notes = InvenTree.fields.InvenTreeNotesField(
         verbose_name=_('Notes'), help_text=_('Markdown notes (optional)')
     )
@@ -942,8 +1034,6 @@ class InvenTreeBarcodeMixin(models.Model):
 
     - barcode_data : Raw data associated with an assigned barcode
     - barcode_hash : A 'hash' of the assigned barcode data used to improve matching
-
-    The barcode_model_type_code() classmethod must be implemented in the model class.
     """
 
     class Meta:
@@ -974,25 +1064,11 @@ class InvenTreeBarcodeMixin(models.Model):
         # By default, use the name of the class
         return cls.__name__.lower()
 
-    @classmethod
-    def barcode_model_type_code(cls):
-        r"""Return a 'short' code for the model type.
-
-        This is used to generate a efficient QR code for the model type.
-        It is expected to match this pattern: [0-9A-Z $%*+-.\/:]{2}
-
-        Note: Due to the shape constrains (45**2=2025 different allowed codes)
-        this needs to be explicitly implemented in the model class to avoid collisions.
-        """
-        raise NotImplementedError(
-            'barcode_model_type_code() must be implemented in the model class'
-        )
-
     def format_barcode(self, **kwargs):
         """Return a JSON string for formatting a QR code for this model instance."""
-        from plugin.base.barcodes.helper import generate_barcode
-
-        return generate_barcode(self)
+        return InvenTree.helpers.MakeBarcode(
+            self.__class__.barcode_model_type(), self.pk, **kwargs
+        )
 
     def format_matched_response(self):
         """Format a standard response for a matched barcode."""
@@ -1010,7 +1086,7 @@ class InvenTreeBarcodeMixin(models.Model):
     @property
     def barcode(self):
         """Format a minimal barcode string (e.g. for label printing)."""
-        return self.format_barcode()
+        return self.format_barcode(brief=True)
 
     @classmethod
     def lookup_barcode(cls, barcode_hash):

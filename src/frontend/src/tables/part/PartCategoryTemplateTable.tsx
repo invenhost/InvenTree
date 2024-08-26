@@ -1,6 +1,7 @@
 import { t } from '@lingui/macro';
 import { Group, Text } from '@mantine/core';
 import { useCallback, useMemo, useState } from 'react';
+import { set } from 'react-hook-form';
 
 import { AddItemButton } from '../../components/buttons/AddItemButton';
 import { ApiFormFieldSet } from '../../components/forms/fields/ApiFormField';
@@ -17,9 +18,9 @@ import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { TableFilter } from '../Filter';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowDeleteAction, RowEditAction } from '../RowActions';
+import { RowDeleteAction, RowEditAction } from '../RowActions';
 
-export default function PartCategoryTemplateTable() {
+export default function PartCategoryTemplateTable({}: {}) {
   const table = useTable('part-category-parameter-templates');
   const user = useUserState();
 
@@ -36,23 +37,23 @@ export default function PartCategoryTemplateTable() {
   const newTemplate = useCreateApiFormModal({
     url: ApiEndpoints.category_parameter_list,
     title: t`Add Category Parameter`,
-    fields: useMemo(() => ({ ...formFields }), [formFields]),
-    table: table
+    fields: formFields,
+    onFormSuccess: table.refreshTable
   });
 
   const editTemplate = useEditApiFormModal({
     url: ApiEndpoints.category_parameter_list,
     pk: selectedTemplate,
     title: t`Edit Category Parameter`,
-    fields: useMemo(() => ({ ...formFields }), [formFields]),
-    table: table
+    fields: formFields,
+    onFormSuccess: (record: any) => table.updateRecord(record)
   });
 
   const deleteTemplate = useDeleteApiFormModal({
     url: ApiEndpoints.category_parameter_list,
     pk: selectedTemplate,
     title: t`Delete Category Parameter`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const tableFilters: TableFilter[] = useMemo(() => {
@@ -93,7 +94,7 @@ export default function PartCategoryTemplateTable() {
           }
 
           return (
-            <Group justify="space-between" grow>
+            <Group position="apart" grow>
               <Text>{record.default_value}</Text>
               {units && <Text size="xs">{units}</Text>}
             </Group>
@@ -104,7 +105,7 @@ export default function PartCategoryTemplateTable() {
   }, []);
 
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       return [
         RowEditAction({
           hidden: !user.hasChangeRole(UserRoles.part),
@@ -147,8 +148,7 @@ export default function PartCategoryTemplateTable() {
         props={{
           rowActions: rowActions,
           tableFilters: tableFilters,
-          tableActions: tableActions,
-          enableDownload: true
+          tableActions: tableActions
         }}
       />
     </>

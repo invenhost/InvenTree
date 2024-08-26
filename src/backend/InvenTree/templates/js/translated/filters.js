@@ -15,9 +15,6 @@
 
 /* exported
    setupFilterList,
-   addTableFilter,
-   removeTableFilter,
-   reloadTableFilters
 */
 
 /**
@@ -529,7 +526,11 @@ function setupFilterList(tableKey, table, target, options={}) {
                 items.push(row.pk);
             });
 
-            printReports(options.report.key, items);
+            printReports({
+                items: items,
+                url: options.report.url,
+                key: options.report.key
+            });
         });
     }
 
@@ -547,7 +548,8 @@ function setupFilterList(tableKey, table, target, options={}) {
                 items: items,
                 singular_name: options.singular_name,
                 plural_name: options.plural_name,
-                model_type: options.labels?.model_type ?? options.model_type,
+                url: options.labels.url,
+                key: options.labels.key,
             });
         });
     }

@@ -8,7 +8,6 @@
     exportFormatOptions,
     formatCurrency,
     getFormFieldValue,
-    handleFormSuccess,
     inventreeGet,
     inventreeLoad,
     inventreeSave,
@@ -26,7 +25,6 @@
     createExtraLineItem,
     editExtraLineItem,
     exportOrder,
-    holdOrder,
     issuePurchaseOrder,
     newPurchaseOrderFromOrderWizard,
     newSupplierPartFromOrderWizard,
@@ -38,29 +36,6 @@
     extraLineFields,
     reloadTotal,
 */
-
-
-function holdOrder(url, options={}) {
-    constructForm(
-        url,
-        {
-            method: 'POST',
-            title: '{% trans "Hold Order" %}',
-            confirm: true,
-            preFormContent: function(opts) {
-                let html = `
-                <div class='alert alert-info alert-block'>
-                    {% trans "Are you sure you wish to place this order on hold?" %}
-                </div>`;
-
-                return html;
-            },
-            onSuccess: function(response) {
-                handleFormSuccess(response, options);
-            }
-        }
-    );
-}
 
 
 /* Construct a set of fields for a OrderExtraLine form */

@@ -18,27 +18,28 @@
 */
 
 
-// Construct a dynamic API filter for an "owner"
-function constructOwnerFilter(title) {
+// Construct a dynamic API filter for the "issued by" field
+function constructIssuedByFilter() {
     return {
-        title: title,
+        title: '{% trans "Issued By" %}',
         options: function() {
-            var ownersList = {};
-            inventreeGet('{% url "api-owner-list" %}', {}, {
+            let users = {};
+
+            inventreeGet('{% url "api-user-list" %}', {}, {
                 async: false,
                 success: function(response) {
-                    for (var key in response) {
-                        let owner = response[key];
-                        ownersList[owner.pk] = {
-                            key: owner.pk,
-                            value: `${owner.name} (${owner.label})`,
+                    for (let user of response) {
+                        users[user.pk] = {
+                            key: user.pk,
+                            value: user.username
                         };
                     }
                 }
             });
-            return ownersList;
-        },
-    };
+
+            return users;
+        }
+    }
 }
 
 // Construct a dynamic API filter for the "project" field
@@ -141,10 +142,6 @@ function getVariantsTableFilters() {
             type: 'bool',
             title: '{% trans "Virtual" %}',
         },
-        testable: {
-            type: 'bool',
-            title: '{% trans "Testable" %}',
-        },
         trackable: {
             type: 'bool',
             title: '{% trans "Trackable" %}',
@@ -156,10 +153,6 @@ function getVariantsTableFilters() {
 // Return a dictionary of filters for the BOM table
 function getBOMTableFilters() {
     return {
-        sub_part_testable: {
-            type: 'bool',
-            title: '{% trans "Testable Part" %}',
-        },
         sub_part_trackable: {
             type: 'bool',
             title: '{% trans "Trackable Part" %}',
@@ -469,20 +462,6 @@ function getStockTestTableFilters() {
     };
 }
 
-// Return a dictionary of filters for the "test statistics" table
-function getTestStatisticsTableFilters() {
-
-    return {
-        finished_datetime_after: {
-            type: 'date',
-            title: '{% trans "Interval start" %}',
-        },
-        finished_datetime_before: {
-            type: 'date',
-            title: '{% trans "Interval end" %}',
-        }
-    };
-}
 
 // Return a dictionary of filters for the "stocktracking" table
 function getStockTrackingTableFilters() {
@@ -548,8 +527,26 @@ function getBuildTableFilters() {
             type: 'bool',
             title: '{% trans "Assigned to me" %}',
         },
-        assigned_to: constructOwnerFilter('{% trans "Responsible" %}'),
-        issued_by: constructOwnerFilter('{% trans "Issued By" %}'),
+        assigned_to: {
+            title: '{% trans "Responsible" %}',
+            options: function() {
+                var ownersList = {};
+                inventreeGet('{% url "api-owner-list" %}', {}, {
+                    async: false,
+                    success: function(response) {
+                        for (var key in response) {
+                            let owner = response[key];
+                            ownersList[owner.pk] = {
+                                key: owner.pk,
+                                value: `${owner.name} (${owner.label})`,
+                            };
+                        }
+                    }
+                });
+                return ownersList;
+            },
+        },
+        issued_by: constructIssuedByFilter(),
     };
 
     if (global_settings.PROJECT_CODES_ENABLED) {
@@ -719,11 +716,6 @@ function getPartTableFilters() {
             title: '{% trans "Active" %}',
             description: '{% trans "Show active parts" %}',
         },
-        locked: {
-            type: 'bool',
-            title: '{% trans "Locked" %}',
-            description: '{% trans "Show locked parts" %}',
-        },
         assembly: {
             type: 'bool',
             title: '{% trans "Assembly" %}',
@@ -773,10 +765,6 @@ function getPartTableFilters() {
         is_template: {
             type: 'bool',
             title: '{% trans "Template" %}',
-        },
-        testable: {
-            type: 'bool',
-            title: '{% trans "Testable" %}',
         },
         trackable: {
             type: 'bool',
@@ -870,8 +858,6 @@ function getAvailableTableFilters(tableKey) {
         return getBuildItemTableFilters();
     case 'buildlines':
         return getBuildLineTableFilters();
-    case 'buildteststatistics':
-        return getTestStatisticsTableFilters();
     case 'bom':
         return getBOMTableFilters();
     case 'category':
@@ -894,8 +880,6 @@ function getAvailableTableFilters(tableKey) {
         return getPartTableFilters();
     case 'parttests':
         return getPartTestTemplateFilters();
-    case 'partteststatistics':
-        return getTestStatisticsTableFilters();
     case 'plugins':
         return getPluginTableFilters();
     case 'purchaseorder':

@@ -40,8 +40,11 @@ from sql_util.utils import SubquerySum
 
 import part.models
 import stock.models
-from build.status_codes import BuildStatusGroups
-from order.status_codes import PurchaseOrderStatusGroups, SalesOrderStatusGroups
+from InvenTree.status_codes import (
+    BuildStatusGroups,
+    PurchaseOrderStatusGroups,
+    SalesOrderStatusGroups,
+)
 
 
 def annotate_in_production_quantity(reference=''):
@@ -296,12 +299,15 @@ def annotate_default_location(reference=''):
         rght__gt=OuterRef(f'{reference}rght'),
         level__lte=OuterRef(f'{reference}level'),
         parent__isnull=False,
-        default_location__isnull=False,
-    ).order_by('-level')
+    )
 
     return Coalesce(
         F(f'{reference}default_location'),
-        Subquery(subquery.values('default_location')[:1]),
+        Subquery(
+            subquery.order_by('-level')
+            .filter(default_location__isnull=False)
+            .values('default_location')
+        ),
         Value(None),
         output_field=IntegerField(),
     )

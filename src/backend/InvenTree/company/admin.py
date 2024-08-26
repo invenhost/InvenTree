@@ -6,8 +6,6 @@ from import_export import widgets
 from import_export.admin import ImportExportModelAdmin
 from import_export.fields import Field
 
-import company.serializers
-import importer.admin
 from InvenTree.admin import InvenTreeResource
 from part.models import Part
 
@@ -16,6 +14,7 @@ from .models import (
     Company,
     Contact,
     ManufacturerPart,
+    ManufacturerPartAttachment,
     ManufacturerPartParameter,
     SupplierPart,
     SupplierPriceBreak,
@@ -35,10 +34,9 @@ class CompanyResource(InvenTreeResource):
 
 
 @admin.register(Company)
-class CompanyAdmin(importer.admin.DataExportAdmin, ImportExportModelAdmin):
+class CompanyAdmin(ImportExportModelAdmin):
     """Admin class for the Company model."""
 
-    serializer_class = company.serializers.CompanySerializer
     resource_class = CompanyResource
 
     list_display = ('name', 'website', 'contact')
@@ -120,6 +118,15 @@ class ManufacturerPartAdmin(ImportExportModelAdmin):
     search_fields = ['manufacturer__name', 'part__name', 'MPN']
 
     autocomplete_fields = ('part', 'manufacturer')
+
+
+@admin.register(ManufacturerPartAttachment)
+class ManufacturerPartAttachmentAdmin(ImportExportModelAdmin):
+    """Admin class for ManufacturerPartAttachment model."""
+
+    list_display = ('manufacturer_part', 'attachment', 'comment')
+
+    autocomplete_fields = ('manufacturer_part',)
 
 
 class ManufacturerPartParameterResource(InvenTreeResource):
@@ -206,8 +213,6 @@ class AddressAdmin(ImportExportModelAdmin):
 
     search_fields = ['company', 'country', 'postal_code']
 
-    autocomplete_fields = ['company']
-
 
 class ContactResource(InvenTreeResource):
     """Class for managing Contact data import/export."""
@@ -232,5 +237,3 @@ class ContactAdmin(ImportExportModelAdmin):
     list_display = ('company', 'name', 'role', 'email', 'phone')
 
     search_fields = ['company', 'name', 'email']
-
-    autocomplete_fields = ['company']

@@ -1,14 +1,13 @@
-import { Modal } from '@mantine/core';
+import { MantineNumberSize, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import React, { useCallback } from 'react';
 
 import { StylishText } from '../components/items/StylishText';
-import { UiSizeType } from '../defaults/formatters';
 
 export interface UseModalProps {
   title: string;
   children: React.ReactElement;
-  size?: UiSizeType;
+  size?: MantineNumberSize;
   onOpen?: () => void;
   onClose?: () => void;
   closeOnClickOutside?: boolean;

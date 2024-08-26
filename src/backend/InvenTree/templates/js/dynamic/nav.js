@@ -1,7 +1,4 @@
 /* globals
-    getApiIconClass,
-    inventreeGet,
-    loadApiIconPacks,
 */
 
 /* exported
@@ -28,8 +25,8 @@ function activatePanel(label, panel_name, options={}) {
     panel_name = panel_name.replace('/', '');
 
     // Find the target panel
-    let panel = `#panel-${panel_name}`;
-    let select = `#select-${panel_name}`;
+    var panel = `#panel-${panel_name}`;
+    var select = `#select-${panel_name}`;
 
     // Check that the selected panel (and select) exist
     if ($(panel).exists() && $(panel).length && $(select).length) {
@@ -40,7 +37,7 @@ function activatePanel(label, panel_name, options={}) {
         panel_name = null;
 
         $('.sidebar-selector').each(function() {
-            const name = $(this).attr('id').replace('select-', '');
+            var name = $(this).attr('id').replace('select-', '');
 
             if ($(`#panel-${name}`).length && (panel_name == null)) {
                 panel_name = name;
@@ -67,7 +64,7 @@ function activatePanel(label, panel_name, options={}) {
     $('.list-group-item').removeClass('active');
 
     // Find the associated selector
-    const selector = `#select-${panel_name}`;
+    var selector = `#select-${panel_name}`;
 
     $(selector).addClass('active');
 }
@@ -78,7 +75,7 @@ function onPanelLoad(panel, callback) {
     // Used to implement lazy-loading, rather than firing
     // multiple AJAX queries when the page is first loaded.
 
-    const panelId = `#panel-${panel}`;
+    var panelId = `#panel-${panel}`;
 
     $(panelId).on('fadeInStarted', function() {
 
@@ -99,10 +96,10 @@ function enableSidebar(label, options={}) {
 
     // Enable callbacks for sidebar buttons
     $('.sidebar-selector').click(function() {
-        const el = $(this);
+        var el = $(this);
 
         // Find the matching panel element to display
-        const panel_name = el.attr('id').replace('select-', '');
+        var panel_name = el.attr('id').replace('select-', '');
 
         activatePanel(label, panel_name, options);
     });
@@ -114,16 +111,16 @@ function enableSidebar(label, options={}) {
      * - Third preference = default
      */
 
-    const selected_panel = $.urlParam('display') || localStorage.getItem(`inventree-selected-panel-${label}`) || options.default;
+    var selected_panel = $.urlParam('display') || localStorage.getItem(`inventree-selected-panel-${label}`) || options.default;
 
     if (selected_panel) {
         activatePanel(label, selected_panel);
     } else {
         // Find the "first" available panel (according to the sidebar)
-        const selector = $('.sidebar-selector').first();
+        var selector = $('.sidebar-selector').first();
 
         if (selector.exists()) {
-            const panel_name = selector.attr('id').replace('select-', '');
+            var panel_name = selector.attr('id').replace('select-', '');
             activatePanel(label, panel_name);
         }
     }
@@ -136,7 +133,7 @@ function enableSidebar(label, options={}) {
             // Add callback to "collapse" and "expand" the sidebar
 
             // By default, the menu is "expanded"
-            const state = localStorage.getItem(`inventree-menu-state-${label}`) || 'expanded';
+            var state = localStorage.getItem(`inventree-menu-state-${label}`) || 'expanded';
 
             // We wish to "toggle" the state!
             setSidebarState(label, state == 'expanded' ? 'collapsed' : 'expanded');
@@ -144,7 +141,7 @@ function enableSidebar(label, options={}) {
     }
 
     // Set the initial state (default = expanded)
-    const state = localStorage.getItem(`inventree-menu-state-${label}`) || 'expanded';
+    var state = localStorage.getItem(`inventree-menu-state-${label}`) || 'expanded';
 
     setSidebarState(label, state);
 
@@ -164,14 +161,10 @@ function enableSidebar(label, options={}) {
 function generateTreeStructure(data, options) {
     const nodes = {};
     const roots = [];
+    let node = null;
 
-    if (!data || !Array.isArray(data) || data.length == 0) {
-        return [];
-    }
-
-    for (let ii = 0; ii < data.length; ii++) {
-        let node = data[ii];
-
+    for (var i = 0; i < data.length; i++) {
+        node = data[i];
         nodes[node.pk] = node;
         node.selectable = false;
 
@@ -182,20 +175,13 @@ function generateTreeStructure(data, options) {
 
         if (options.processNode) {
             node = options.processNode(node);
-
-            if (node.icon) {
-                node.icon = getApiIconClass(node.icon);
-            }
-
-            data[ii] = node;
         }
     }
 
-    for (let ii = 0; ii < data.length; ii++) {
+    for (var i = 0; i < data.length; i++) {
+        node = data[i];
 
-        let node = data[ii];
-
-        if (!!node.parent) {
+        if (node.parent != null) {
             if (nodes[node.parent].nodes) {
                 nodes[node.parent].nodes.push(node);
             } else {
@@ -203,7 +189,7 @@ function generateTreeStructure(data, options) {
             }
 
             if (node.state.expanded) {
-                while (!!node.parent) {
+                while (node.parent != null) {
                     nodes[node.parent].state.expanded = true;
                     node = nodes[node.parent];
                 }
@@ -220,18 +206,16 @@ function generateTreeStructure(data, options) {
 /**
  * Enable support for breadcrumb tree navigation on this page
  */
-async function enableBreadcrumbTree(options) {
+function enableBreadcrumbTree(options) {
 
-    const label = options.label;
+    var label = options.label;
 
     if (!label) {
         console.error('enableBreadcrumbTree called without supplying label');
         return;
     }
 
-    const filters = options.filters || {};
-
-    await loadApiIconPacks();
+    var filters = options.filters || {};
 
     inventreeGet(
         options.url,
@@ -299,7 +283,7 @@ function setSidebarState(label, state) {
  */
 function addSidebarItem(options={}) {
 
-    const html = `
+    var html = `
     <a href='#' id='select-${options.label}' title='${options.text}' class='list-group-item sidebar-list-group-item border-end d-inline-block text-truncate sidebar-selector' data-bs-parent='#sidebar'>
         <i class='bi bi-bootstrap'></i>
         ${options.content_before || ''}
@@ -318,7 +302,7 @@ function addSidebarItem(options={}) {
  */
 function addSidebarHeader(options={}) {
 
-    const html = `
+    var html = `
     <span title='${options.text}' class="list-group-item sidebar-list-group-item border-end d-inline-block text-truncate" data-bs-parent="#sidebar">
         <h6>
             <i class="bi bi-bootstrap"></i>

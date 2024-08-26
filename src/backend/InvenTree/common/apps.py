@@ -5,7 +5,6 @@ import logging
 from django.apps import AppConfig
 
 import InvenTree.ready
-from common.settings import get_global_setting, set_global_setting
 
 logger = logging.getLogger('inventree')
 
@@ -28,12 +27,16 @@ class CommonConfig(AppConfig):
     def clear_restart_flag(self):
         """Clear the SERVER_RESTART_REQUIRED setting."""
         try:
-            if get_global_setting(
+            import common.models
+
+            if common.models.InvenTreeSetting.get_setting(
                 'SERVER_RESTART_REQUIRED', backup_value=False, create=False, cache=False
             ):
                 logger.info('Clearing SERVER_RESTART_REQUIRED flag')
 
                 if not InvenTree.ready.isImportingData():
-                    set_global_setting('SERVER_RESTART_REQUIRED', False, None)
+                    common.models.InvenTreeSetting.set_setting(
+                        'SERVER_RESTART_REQUIRED', False, None
+                    )
         except Exception:
             pass

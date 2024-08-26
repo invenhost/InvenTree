@@ -26,46 +26,46 @@ export function ServerInfoModal({
         <Trans>Server</Trans>
       </Title>
       <Table>
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Td>
+        <tbody>
+          <tr>
+            <td>
               <Trans>Instance Name</Trans>
-            </Table.Td>
-            <Table.Td>{server.instance}</Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+            <td>{server.instance}</td>
+          </tr>
+          <tr>
+            <td>
               <Trans>Database</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <OnlyStaff>{server.database}</OnlyStaff>
-            </Table.Td>
-          </Table.Tr>
+            </td>
+          </tr>
           {server.debug_mode && (
-            <Table.Tr>
-              <Table.Td>
+            <tr>
+              <td>
                 <Trans>Debug Mode</Trans>
-              </Table.Td>
-              <Table.Td>
+              </td>
+              <td>
                 <Trans>Server is running in debug mode</Trans>
-              </Table.Td>
-            </Table.Tr>
+              </td>
+            </tr>
           )}
           {server.docker_mode && (
-            <Table.Tr>
-              <Table.Td>
+            <tr>
+              <td>
                 <Trans>Docker Mode</Trans>
-              </Table.Td>
-              <Table.Td>
+              </td>
+              <td>
                 <Trans>Server is deployed using docker</Trans>
-              </Table.Td>
-            </Table.Tr>
+              </td>
+            </tr>
           )}
-          <Table.Tr>
-            <Table.Td>
+          <tr>
+            <td>
               <Trans>Plugin Support</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <Badge color={server.plugins_enabled ? 'green' : 'red'}>
                 {server.plugins_enabled ? (
                   <Trans>Plugin support enabled</Trans>
@@ -73,13 +73,13 @@ export function ServerInfoModal({
                   <Trans>Plugin support disabled</Trans>
                 )}
               </Badge>
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+          </tr>
+          <tr>
+            <td>
               <Trans>Server status</Trans>
-            </Table.Td>
-            <Table.Td>
+            </td>
+            <td>
               <OnlyStaff>
                 <Badge color={server.system_health ? 'green' : 'yellow'}>
                   {server.system_health ? (
@@ -89,55 +89,55 @@ export function ServerInfoModal({
                   )}
                 </Badge>
               </OnlyStaff>
-            </Table.Td>
-          </Table.Tr>
-          {server?.worker_running == false && (
-            <Table.Tr>
-              <Table.Td>
+            </td>
+          </tr>
+          {server.worker_running != true && (
+            <tr>
+              <td>
                 <Trans>Background Worker</Trans>
-              </Table.Td>
-              <Table.Td>
+              </td>
+              <td>
                 <Badge color="red">
                   <Trans>Background worker not running</Trans>
                 </Badge>
-              </Table.Td>
-            </Table.Tr>
+              </td>
+            </tr>
           )}
-          {server?.email_configured == false && (
-            <Table.Tr>
-              <Table.Td>
+          {server.email_configured != true && (
+            <tr>
+              <td>
                 <Trans>Email Settings</Trans>
-              </Table.Td>
-              <Table.Td>
+              </td>
+              <td>
                 <Badge color="red">
                   <Trans>Email settings not configured</Trans>
                 </Badge>
-              </Table.Td>
-            </Table.Tr>
+              </td>
+            </tr>
           )}
-        </Table.Tbody>
+        </tbody>
       </Table>
       <Title order={5}>
         <Trans>Version</Trans>
       </Title>
       <Table>
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Td>
+        <tbody>
+          <tr>
+            <td>
               <Trans>Server Version</Trans>
-            </Table.Td>
-            <Table.Td>{server.version}</Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Td>
+            </td>
+            <td>{server.version}</td>
+          </tr>
+          <tr>
+            <td>
               <Trans>API Version</Trans>
-            </Table.Td>
-            <Table.Td>{server.apiVersion}</Table.Td>
-          </Table.Tr>
-        </Table.Tbody>
+            </td>
+            <td>{server.apiVersion}</td>
+          </tr>
+        </tbody>
       </Table>
       <Divider />
-      <Group justify="right">
+      <Group position="right">
         <Button
           color="red"
           onClick={() => {

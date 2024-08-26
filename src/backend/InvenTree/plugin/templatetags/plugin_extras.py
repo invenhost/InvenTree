@@ -2,12 +2,11 @@
 
 from django import template
 from django.conf import settings as djangosettings
-from django.templatetags.static import static
 from django.urls import reverse
 
+from common.models import InvenTreeSetting
 from common.notifications import storage
-from common.settings import get_global_setting
-from plugin.registry import registry
+from plugin import registry
 
 register = template.Library()
 
@@ -56,7 +55,7 @@ def navigation_enabled(*args, **kwargs):
     """Is plugin navigation enabled?"""
     if djangosettings.PLUGIN_TESTING:
         return True
-    return get_global_setting('ENABLE_PLUGINS_NAVIGATION')  # pragma: no cover
+    return InvenTreeSetting.get_setting('ENABLE_PLUGINS_NAVIGATION')  # pragma: no cover
 
 
 @register.simple_tag()
@@ -97,27 +96,3 @@ def notification_list(context, *args, **kwargs):
         }
         for a in storage.liste
     ]
-
-
-@register.simple_tag(takes_context=True)
-def plugin_static(context, file: str, **kwargs):
-    """Return the URL for a static file within a plugin.
-
-    Arguments:
-        file: The path to the file within the plugin static directory
-
-    Keyword Arguments:
-        plugin: The plugin slug (optional, will be inferred from the context if not provided)
-
-    """
-    plugin = context.get('plugin', None)
-
-    if plugin:
-        plugin = plugin.slug
-    else:
-        plugin = kwargs.get('plugin', None)
-
-    if not plugin:
-        return file
-
-    return static(f'plugins/{plugin}/{file}')

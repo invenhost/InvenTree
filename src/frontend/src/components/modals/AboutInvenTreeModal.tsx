@@ -59,7 +59,7 @@ export function AboutInvenTreeModal({
       <tr key={idx}>
         <td>{map.title}</td>
         <td>
-          <Group justify="space-between" gap="xs">
+          <Group position="apart" spacing="xs">
             {alwaysLink ? (
               <Anchor href={data[map.ref]} target="_blank">
                 {data[map.ref]}
@@ -177,7 +177,7 @@ export function AboutInvenTreeModal({
         </tbody>
       </Table>
       <Divider />
-      <Group justify="space-between">
+      <Group position="apart">
         <CopyButton
           value={copyval}
           label={<Trans>Copy version information</Trans>}

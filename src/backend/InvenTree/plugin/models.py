@@ -7,12 +7,11 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.db import models
-from django.urls import reverse
+from django.db.utils import IntegrityError
 from django.utils.translation import gettext_lazy as _
 
 import common.models
 import InvenTree.models
-import plugin.staticfiles
 from plugin import InvenTreePlugin, registry
 
 
@@ -25,11 +24,6 @@ class PluginConfig(InvenTree.models.MetadataMixin, models.Model):
         active: Should the plugin be loaded?
     """
 
-    @staticmethod
-    def get_api_url():
-        """Return the API URL associated with the PluginConfig model."""
-        return reverse('api-plugin-list')
-
     class Meta:
         """Meta for PluginConfig."""
 
@@ -37,11 +31,7 @@ class PluginConfig(InvenTree.models.MetadataMixin, models.Model):
         verbose_name_plural = _('Plugin Configurations')
 
     key = models.CharField(
-        unique=True,
-        db_index=True,
-        max_length=255,
-        verbose_name=_('Key'),
-        help_text=_('Key of plugin'),
+        unique=True, max_length=255, verbose_name=_('Key'), help_text=_('Key of plugin')
     )
 
     name = models.CharField(
@@ -186,20 +176,6 @@ class PluginConfig(InvenTree.models.MetadataMixin, models.Model):
             return False
 
         return getattr(self.plugin, 'is_package', False)
-
-    def activate(self, active: bool) -> None:
-        """Set the 'active' status of this plugin instance."""
-        from InvenTree.tasks import check_for_migrations, offload_task
-
-        if self.active == active:
-            return
-
-        self.active = active
-        self.save()
-
-        if active:
-            offload_task(check_for_migrations)
-            offload_task(plugin.staticfiles.copy_plugin_static_files, self.key)
 
 
 class PluginSetting(common.models.BaseInvenTreeSetting):

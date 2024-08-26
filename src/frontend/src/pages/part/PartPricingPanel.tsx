@@ -31,7 +31,11 @@ export enum panelOptions {
 export default function PartPricingPanel({ part }: { part: any }) {
   const user = useUserState();
 
-  const { instance: pricing, instanceQuery } = useInstance({
+  const {
+    instance: pricing,
+    refreshInstance,
+    instanceQuery
+  } = useInstance({
     pk: part?.pk,
     hasPrimaryKey: true,
     endpoint: ApiEndpoints.part_pricing_get,
@@ -61,7 +65,7 @@ export default function PartPricingPanel({ part }: { part: any }) {
   }
 
   return (
-    <Stack gap="xs">
+    <Stack spacing="xs">
       <LoadingOverlay visible={instanceQuery.isLoading} />
       {!pricing && !instanceQuery.isLoading && (
         <Alert color="ref" title={t`Error`}>

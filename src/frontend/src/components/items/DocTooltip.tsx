@@ -2,7 +2,7 @@ import { Trans } from '@lingui/macro';
 import { Anchor, Container, HoverCard, ScrollArea, Text } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 
-import * as classes from '../../main.css';
+import { InvenTreeStyle } from '../../globalStyle';
 
 export interface BaseDocProps {
   text: string | JSX.Element;
@@ -21,7 +21,9 @@ export function DocTooltip({
   detail,
   link,
   docchildren
-}: Readonly<DocTooltipProps>) {
+}: DocTooltipProps) {
+  const { classes } = InvenTreeStyle();
+
   return (
     <HoverCard
       shadow="md"

@@ -1311,7 +1311,7 @@ function loadBomTable(table, options={}) {
 
                     return renderLink(
                         '{% trans "View BOM" %}',
-                        `/part/${row.part}/?display=bom`
+                        `/part/${row.part}/bom/`
                     );
                 }
             },

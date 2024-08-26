@@ -15,11 +15,26 @@ updates:
       interval: weekly
 
   - package-ecosystem: pip
-    directories:
-    - /contrib/container
-    - /docs
-    - /contrib/dev_reqs
-    - /src/backend
+    directory: /contrib/container
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: /docs
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /src/backend
+    schedule:
+      interval: weekly
+    groups:
+      dependencies:
+        patterns:
+          - "*" # Include all dependencies
+
+  - package-ecosystem: pip
+    directory: /src/backend
     schedule:
       interval: weekly
     groups:
@@ -28,9 +43,7 @@ updates:
           - "*" # Include all dependencies
 
   - package-ecosystem: npm
-    directories:
-    - /src/frontend
-    - /src/backend
+    directory: /src/frontend
     schedule:
       interval: weekly
     groups:

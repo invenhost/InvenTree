@@ -473,59 +473,7 @@ function completePendingShipmentsHelper(shipments, shipment_idx, options={}) {
 
 
 /*
- * Launches a modal form to mark a SalesOrder as "shipped"
- */
-function shipSalesOrder(order_id, options={}) {
-
-    constructForm(
-        `/api/order/so/${order_id}/complete/`,
-        {
-            method: 'POST',
-            title: '{% trans "Ship Sales Order" %}',
-            confirm: true,
-            fieldsFunction: function(opts) {
-                var fields = {
-                    accept_incomplete: {},
-                };
-
-                if (opts.context.is_complete) {
-                    delete fields['accept_incomplete'];
-                }
-
-                return fields;
-            },
-            preFormContent: function(opts) {
-                var html = `
-                <div class='alert alert-block alert-info'>
-                    {% trans "Ship this order?" %}
-                </div>`;
-
-                if (opts.context.pending_shipments) {
-                    html += `
-                    <div class='alert alert-block alert-danger'>
-                    {% trans "Order cannot be shipped as there are incomplete shipments" %}<br>
-                    </div>`;
-                }
-
-                if (!opts.context.is_complete) {
-                    html += `
-                    <div class='alert alert-block alert-warning'>
-                    {% trans "This order has line items which have not been completed." %}<br>
-                    {% trans "Shipping this order means that the order and line items will no longer be editable." %}
-                    </div>`;
-                }
-
-                return html;
-            },
-            onSuccess: function(response) {
-                handleFormSuccess(response, options);
-            }
-        }
-    );
-}
-
-/*
- * Launches a modal form to mark a SalesOrder as "completed"
+ * Launches a modal form to mark a SalesOrder as "complete"
  */
 function completeSalesOrder(order_id, options={}) {
 
@@ -551,6 +499,21 @@ function completeSalesOrder(order_id, options={}) {
                 <div class='alert alert-block alert-info'>
                     {% trans "Mark this order as complete?" %}
                 </div>`;
+
+                if (opts.context.pending_shipments) {
+                    html += `
+                    <div class='alert alert-block alert-danger'>
+                    {% trans "Order cannot be completed as there are incomplete shipments" %}<br>
+                    </div>`;
+                }
+
+                if (!opts.context.is_complete) {
+                    html += `
+                    <div class='alert alert-block alert-warning'>
+                    {% trans "This order has line items which have not been completed." %}<br>
+                    {% trans "Completing this order means that the order and line items will no longer be editable." %}
+                    </div>`;
+                }
 
                 return html;
             },
@@ -682,7 +645,8 @@ function loadSalesOrderTable(table, options) {
     setupFilterList('salesorder', $(table), '#filter-list-salesorder', {
         download: true,
         report: {
-            key: 'salesorder'
+            url: '{% url "api-so-report-list" %}',
+            key: 'order'
         }
     });
 
@@ -851,10 +815,10 @@ function loadSalesOrderTable(table, options) {
             },
             {
                 sortable: true,
-                field: 'status_custom_key',
+                field: 'status',
                 title: '{% trans "Status" %}',
                 formatter: function(value, row) {
-                    return salesOrderStatusDisplay(row.status_custom_key);
+                    return salesOrderStatusDisplay(row.status);
                 }
             },
             {

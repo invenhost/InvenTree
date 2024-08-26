@@ -1,11 +1,7 @@
 import { t } from '@lingui/macro';
-import {
-  Input,
-  darken,
-  useMantineColorScheme,
-  useMantineTheme
-} from '@mantine/core';
-import { useDebouncedValue, useId } from '@mantine/hooks';
+import { Input, useMantineTheme } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useId } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -16,7 +12,6 @@ import {
 import Select from 'react-select';
 
 import { api } from '../../../App';
-import { vars } from '../../../theme';
 import { RenderInstance } from '../../render/Instance';
 import { ApiFormFieldType } from './ApiFormField';
 
@@ -59,43 +54,31 @@ export function RelatedModelField({
     if (field.value === pk) return;
 
     if (
-      field?.value !== null &&
-      field?.value !== undefined &&
-      field?.value !== ''
+      field.value !== null &&
+      field.value !== undefined &&
+      field.value !== ''
     ) {
       const url = `${definition.api_url}${field.value}/`;
-
-      if (!url) {
-        setPk(null);
-        return;
-      }
-
       api.get(url).then((response) => {
-        let pk_field = definition.pk_field ?? 'pk';
-        if (response.data && response.data[pk_field]) {
+        if (response.data && response.data.pk) {
           const value = {
-            value: response.data[pk_field],
+            value: response.data.pk,
             data: response.data
           };
 
-          // Run custom callback for this field (if provided)
-          if (definition.onValueChange) {
-            definition.onValueChange(response.data[pk_field], response.data);
-          }
-
           setInitialData(value);
           dataRef.current = [value];
-          setPk(response.data[pk_field]);
+          setPk(response.data.pk);
         }
       });
     } else {
       setPk(null);
     }
-  }, [definition.api_url, definition.pk_field, field.value]);
+  }, [definition.api_url, field.value]);
 
   // Search input query
   const [value, setValue] = useState<string>('');
-  const [searchText] = useDebouncedValue(value, 250);
+  const [searchText, cancelSearchText] = useDebouncedValue(value, 250);
 
   const [filters, setFilters] = useState<any>({});
 
@@ -158,15 +141,13 @@ export function RelatedModelField({
           const results = response.data?.results ?? response.data ?? [];
 
           results.forEach((item: any) => {
-            let pk_field = definition.pk_field ?? 'pk';
-            let pk = item[pk_field];
+            // do not push already existing items into the values array
+            if (alreadyPresentPks.includes(item.pk)) return;
 
-            if (pk && !alreadyPresentPks.includes(pk)) {
-              values.push({
-                value: pk,
-                data: item
-              });
-            }
+            values.push({
+              value: item.pk ?? -1,
+              data: item
+            });
           });
 
           setData(values);
@@ -207,7 +188,7 @@ export function RelatedModelField({
       setPk(_pk);
 
       // Run custom callback for this field (if provided)
-      definition.onValueChange?.(_pk, value?.data ?? {});
+      definition.onValueChange?.(_pk);
     },
     [field.onChange, definition]
   );
@@ -236,45 +217,44 @@ export function RelatedModelField({
   // Field doesn't follow Mantine theming
   // Define color theme to pass to field based on Mantine theme
   const theme = useMantineTheme();
-  const { colorScheme } = useMantineColorScheme();
 
   const colors = useMemo(() => {
     let colors: any;
-    if (colorScheme === 'dark') {
+    if (theme.colorScheme === 'dark') {
       colors = {
-        neutral0: vars.colors.dark[6],
-        neutral5: vars.colors.dark[4],
-        neutral10: vars.colors.dark[4],
-        neutral20: vars.colors.dark[4],
-        neutral30: vars.colors.dark[3],
-        neutral40: vars.colors.dark[2],
-        neutral50: vars.colors.dark[1],
-        neutral60: vars.colors.dark[0],
-        neutral70: vars.colors.dark[0],
-        neutral80: vars.colors.dark[0],
-        neutral90: vars.colors.dark[0],
-        primary: vars.colors.primaryColors[7],
-        primary25: vars.colors.primaryColors[6],
-        primary50: vars.colors.primaryColors[5],
-        primary75: vars.colors.primaryColors[4]
+        neutral0: theme.colors[theme.colorScheme][6],
+        neutral5: theme.colors[theme.colorScheme][4],
+        neutral10: theme.colors[theme.colorScheme][4],
+        neutral20: theme.colors[theme.colorScheme][4],
+        neutral30: theme.colors[theme.colorScheme][3],
+        neutral40: theme.colors[theme.colorScheme][2],
+        neutral50: theme.colors[theme.colorScheme][1],
+        neutral60: theme.colors[theme.colorScheme][0],
+        neutral70: theme.colors[theme.colorScheme][0],
+        neutral80: theme.colors[theme.colorScheme][0],
+        neutral90: theme.colors[theme.colorScheme][0],
+        primary: theme.colors[theme.primaryColor][7],
+        primary25: theme.colors[theme.primaryColor][6],
+        primary50: theme.colors[theme.primaryColor][5],
+        primary75: theme.colors[theme.primaryColor][4]
       };
     } else {
       colors = {
-        neutral0: vars.colors.white,
-        neutral5: darken(vars.colors.white, 0.05),
-        neutral10: darken(vars.colors.white, 0.1),
-        neutral20: darken(vars.colors.white, 0.2),
-        neutral30: darken(vars.colors.white, 0.3),
-        neutral40: darken(vars.colors.white, 0.4),
-        neutral50: darken(vars.colors.white, 0.5),
-        neutral60: darken(vars.colors.white, 0.6),
-        neutral70: darken(vars.colors.white, 0.7),
-        neutral80: darken(vars.colors.white, 0.8),
-        neutral90: darken(vars.colors.white, 0.9),
-        primary: vars.colors.primaryColors[7],
-        primary25: vars.colors.primaryColors[4],
-        primary50: vars.colors.primaryColors[5],
-        primary75: vars.colors.primaryColors[6]
+        neutral0: theme.white,
+        neutral5: theme.fn.darken(theme.white, 0.05),
+        neutral10: theme.fn.darken(theme.white, 0.1),
+        neutral20: theme.fn.darken(theme.white, 0.2),
+        neutral30: theme.fn.darken(theme.white, 0.3),
+        neutral40: theme.fn.darken(theme.white, 0.4),
+        neutral50: theme.fn.darken(theme.white, 0.5),
+        neutral60: theme.fn.darken(theme.white, 0.6),
+        neutral70: theme.fn.darken(theme.white, 0.7),
+        neutral80: theme.fn.darken(theme.white, 0.8),
+        neutral90: theme.fn.darken(theme.white, 0.9),
+        primary: theme.colors[theme.primaryColor][7],
+        primary25: theme.colors[theme.primaryColor][4],
+        primary50: theme.colors[theme.primaryColor][5],
+        primary75: theme.colors[theme.primaryColor][6]
       };
     }
     return colors;
@@ -288,7 +268,6 @@ export function RelatedModelField({
     >
       <Select
         id={fieldId}
-        aria-label={`related-field-${field.name}`}
         value={currentValue}
         ref={field.ref}
         options={data}

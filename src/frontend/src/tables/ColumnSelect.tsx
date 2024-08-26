@@ -1,5 +1,6 @@
 import { t } from '@lingui/macro';
-import { ActionIcon, Checkbox, Menu, Tooltip } from '@mantine/core';
+import { Checkbox, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon } from '@mantine/core';
 import { IconAdjustments } from '@tabler/icons-react';
 
 export function TableColumnSelect({
@@ -12,7 +13,7 @@ export function TableColumnSelect({
   return (
     <Menu shadow="xs" closeOnItemClick={false}>
       <Menu.Target>
-        <ActionIcon variant="transparent" aria-label="table-select-columns">
+        <ActionIcon>
           <Tooltip label={t`Select Columns`}>
             <IconAdjustments />
           </Tooltip>

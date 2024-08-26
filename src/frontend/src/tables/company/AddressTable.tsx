@@ -16,7 +16,7 @@ import { apiUrl } from '../../states/ApiState';
 import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowDeleteAction, RowEditAction } from '../RowActions';
+import { RowDeleteAction, RowEditAction } from '../RowActions';
 
 export function AddressTable({
   companyId,
@@ -124,7 +124,7 @@ export function AddressTable({
       company: companyId
     },
     successMessage: t`Address created`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const [selectedAddress, setSelectedAddress] = useState<number>(-1);
@@ -134,19 +134,19 @@ export function AddressTable({
     pk: selectedAddress,
     title: t`Edit Address`,
     fields: addressFields,
-    table: table
+    onFormSuccess: (record: any) => table.updateRecord(record)
   });
 
   const deleteAddress = useDeleteApiFormModal({
     url: ApiEndpoints.address_list,
     pk: selectedAddress,
     title: t`Delete Address`,
-    preFormWarning: t`Are you sure you want to delete this address?`,
-    table: table
+    onFormSuccess: table.refreshTable,
+    preFormWarning: t`Are you sure you want to delete this address?`
   });
 
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       let can_edit =
         user.hasChangeRole(UserRoles.purchase_order) ||
         user.hasChangeRole(UserRoles.sales_order);
@@ -199,7 +199,6 @@ export function AddressTable({
         tableState={table}
         columns={columns}
         props={{
-          enableDownload: true,
           rowActions: rowActions,
           tableActions: tableActions,
           params: {

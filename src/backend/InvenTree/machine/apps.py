@@ -26,6 +26,7 @@ class MachineConfig(AppConfig):
         if (
             not canAppAccessDatabase(allow_test=True)
             or not isPluginRegistryLoaded()
+            or not isInMainThread()
             or isRunningMigrations()
             or isImportingData()
         ):
@@ -36,7 +37,7 @@ class MachineConfig(AppConfig):
 
         try:
             logger.info('Loading InvenTree machines')
-            registry.initialize(main=isInMainThread())
+            registry.initialize()
         except (OperationalError, ProgrammingError):
             # Database might not yet be ready
             logger.warn('Database was not ready for initializing machines')

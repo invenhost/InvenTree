@@ -43,7 +43,7 @@ export function InfoItem({
   }
 
   return (
-    <Group justify="space-between">
+    <Group position="apart">
       <Text fz="sm" fw={700}>
         {name}:
       </Text>

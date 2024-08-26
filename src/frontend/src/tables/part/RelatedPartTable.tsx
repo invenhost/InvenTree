@@ -17,7 +17,7 @@ import { apiUrl } from '../../states/ApiState';
 import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowDeleteAction } from '../RowActions';
+import { RowDeleteAction } from '../RowActions';
 
 /**
  * Construct a table listing related parts for a given part
@@ -47,8 +47,8 @@ export function RelatedPartTable({ partId }: { partId: number }): ReactNode {
           let part = getPart(record);
           return (
             <Group
-              wrap="nowrap"
-              justify="left"
+              noWrap={true}
+              position="left"
               onClick={() => {
                 navigate(`/part/${part.pk}/`);
               }}
@@ -86,7 +86,7 @@ export function RelatedPartTable({ partId }: { partId: number }): ReactNode {
     initialData: {
       part_1: partId
     },
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const [selectedRelatedPart, setSelectedRelatedPart] = useState<
@@ -97,7 +97,7 @@ export function RelatedPartTable({ partId }: { partId: number }): ReactNode {
     url: ApiEndpoints.related_part_list,
     pk: selectedRelatedPart,
     title: t`Delete Related Part`,
-    table: table
+    onFormSuccess: table.refreshTable
   });
 
   const tableActions: ReactNode[] = useMemo(() => {
@@ -111,7 +111,7 @@ export function RelatedPartTable({ partId }: { partId: number }): ReactNode {
   }, [user]);
 
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       return [
         RowDeleteAction({
           hidden: !user.hasDeleteRole(UserRoles.part),

@@ -8,20 +8,19 @@ from django.contrib.auth.models import User
 
 from rest_framework.exceptions import ValidationError
 
+from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as rest_filters
 
-from importer.mixins import DataExportViewMixin
-
-from InvenTree.api import BulkDeleteMixin, MetadataView
+from InvenTree.api import AttachmentMixin, APIDownloadMixin, ListCreateDestroyAPIView, MetadataView
 from generic.states.api import StatusView
-from InvenTree.helpers import str2bool, isNull
-from build.status_codes import BuildStatus, BuildStatusGroups
+from InvenTree.helpers import str2bool, isNull, DownloadFile
+from InvenTree.status_codes import BuildStatus, BuildStatusGroups
 from InvenTree.mixins import CreateAPI, RetrieveUpdateDestroyAPI, ListCreateAPI
 
 import common.models
 import build.admin
 import build.serializers
-from build.models import Build, BuildLine, BuildItem
+from build.models import Build, BuildLine, BuildItem, BuildOrderAttachment
 import part.models
 from users.models import Owner
 from InvenTree.filters import SEARCH_ORDER_FILTER_ALIAS
@@ -31,11 +30,13 @@ class BuildFilter(rest_filters.FilterSet):
     """Custom filterset for BuildList API endpoint."""
 
     class Meta:
-        """Metaclass options."""
+        """Metaclass options"""
         model = Build
         fields = [
+            'parent',
             'sales_order',
             'part',
+            'issued_by',
         ]
 
     status = rest_filters.NumberFilter(label='Status')
@@ -48,24 +49,6 @@ class BuildFilter(rest_filters.FilterSet):
             return queryset.filter(status__in=BuildStatusGroups.ACTIVE_CODES)
         return queryset.exclude(status__in=BuildStatusGroups.ACTIVE_CODES)
 
-    parent = rest_filters.ModelChoiceFilter(
-        queryset=Build.objects.all(),
-        label=_('Parent Build'),
-        field_name='parent',
-    )
-
-    ancestor = rest_filters.ModelChoiceFilter(
-        queryset=Build.objects.all(),
-        label=_('Ancestor Build'),
-        method='filter_ancestor'
-    )
-
-    def filter_ancestor(self, queryset, name, parent):
-        """Filter by 'parent' build order."""
-
-        builds = parent.get_descendants(include_self=False)
-        return queryset.filter(pk__in=[b.pk for b in builds])
-
     overdue = rest_filters.BooleanFilter(label='Build is overdue', method='filter_overdue')
 
     def filter_overdue(self, queryset, name, value):
@@ -74,10 +57,7 @@ class BuildFilter(rest_filters.FilterSet):
             return queryset.filter(Build.OVERDUE_FILTER)
         return queryset.exclude(Build.OVERDUE_FILTER)
 
-    assigned_to_me = rest_filters.BooleanFilter(
-        label=_('Assigned to me'),
-        method='filter_assigned_to_me'
-    )
+    assigned_to_me = rest_filters.BooleanFilter(label='assigned_to_me', method='filter_assigned_to_me')
 
     def filter_assigned_to_me(self, queryset, name, value):
         """Filter by orders which are assigned to the current user."""
@@ -90,33 +70,10 @@ class BuildFilter(rest_filters.FilterSet):
             return queryset.filter(responsible__in=owners)
         return queryset.exclude(responsible__in=owners)
 
-    issued_by = rest_filters.ModelChoiceFilter(
-        queryset=Owner.objects.all(),
-        label=_('Issued By'),
-        method='filter_issued_by'
-    )
+    assigned_to = rest_filters.NumberFilter(label='responsible', method='filter_responsible')
 
-    def filter_issued_by(self, queryset, name, owner):
-        """Filter by 'owner' which issued the order."""
-
-        if owner.label() == 'user':
-            user = User.objects.get(pk=owner.owner_id)
-            return queryset.filter(issued_by=user)
-        elif owner.label() == 'group':
-            group = User.objects.filter(groups__pk=owner.owner_id)
-            return queryset.filter(issued_by__in=group)
-        else:
-            return queryset.none()
-
-    assigned_to = rest_filters.ModelChoiceFilter(
-        queryset=Owner.objects.all(),
-        field_name='responsible',
-        label=_('Assigned To')
-    )
-
-    def filter_responsible(self, queryset, name, owner):
+    def filter_responsible(self, queryset, name, value):
         """Filter by orders which are assigned to the specified owner."""
-
         owners = list(Owner.objects.filter(pk=value))
 
         # if we query by a user, also find all ownerships through group memberships
@@ -146,35 +103,15 @@ class BuildFilter(rest_filters.FilterSet):
         return queryset.filter(project_code=None)
 
 
-class BuildMixin:
-    """Mixin class for Build API endpoints."""
-
-    queryset = Build.objects.all()
-    serializer_class = build.serializers.BuildSerializer
-
-    def get_queryset(self):
-        """Return the queryset for the Build API endpoints."""
-        queryset = super().get_queryset()
-
-        queryset = queryset.prefetch_related(
-            'responsible',
-            'issued_by',
-            'build_lines',
-            'build_lines__bom_item',
-            'build_lines__build',
-            'part',
-        )
-
-        return queryset
-
-
-class BuildList(DataExportViewMixin, BuildMixin, ListCreateAPI):
+class BuildList(APIDownloadMixin, ListCreateAPI):
     """API endpoint for accessing a list of Build objects.
 
     - GET: Return list of objects (with filters)
     - POST: Create a new Build object
     """
 
+    queryset = Build.objects.all()
+    serializer_class = build.serializers.BuildSerializer
     filterset_class = BuildFilter
 
     filter_backends = SEARCH_ORDER_FILTER_ALIAS
@@ -192,7 +129,6 @@ class BuildList(DataExportViewMixin, BuildMixin, ListCreateAPI):
         'responsible',
         'project_code',
         'priority',
-        'level',
     ]
 
     ordering_field_aliases = {
@@ -220,6 +156,15 @@ class BuildList(DataExportViewMixin, BuildMixin, ListCreateAPI):
 
         return queryset
 
+    def download_queryset(self, queryset, export_format):
+        """Download the queryset data as a file."""
+        dataset = build.admin.BuildResource().export(queryset=queryset)
+
+        filedata = dataset.export(export_format)
+        filename = f"InvenTree_BuildOrders.{export_format}"
+
+        return DownloadFile(filedata, filename)
+
     def filter_queryset(self, queryset):
         """Custom query filtering for the BuildList endpoint."""
         queryset = super().filter_queryset(queryset)
@@ -241,6 +186,22 @@ class BuildList(DataExportViewMixin, BuildMixin, ListCreateAPI):
             except (ValueError, Build.DoesNotExist):
                 pass
 
+        # Filter by "ancestor" builds
+        ancestor = params.get('ancestor', None)
+
+        if ancestor is not None:
+            try:
+                ancestor = Build.objects.get(pk=ancestor)
+
+                descendants = ancestor.get_descendants(include_self=True)
+
+                queryset = queryset.filter(
+                    parent__pk__in=[b.pk for b in descendants]
+                )
+
+            except (ValueError, Build.DoesNotExist):
+                pass
+
         # Filter by 'date range'
         min_date = params.get('min_date', None)
         max_date = params.get('max_date', None)
@@ -253,18 +214,20 @@ class BuildList(DataExportViewMixin, BuildMixin, ListCreateAPI):
     def get_serializer(self, *args, **kwargs):
         """Add extra context information to the endpoint serializer."""
         try:
-            part_detail = str2bool(self.request.GET.get('part_detail', True))
+            part_detail = str2bool(self.request.GET.get('part_detail', None))
         except AttributeError:
-            part_detail = True
+            part_detail = None
 
         kwargs['part_detail'] = part_detail
-        kwargs['create'] = True
 
         return self.serializer_class(*args, **kwargs)
 
 
-class BuildDetail(BuildMixin, RetrieveUpdateDestroyAPI):
+class BuildDetail(RetrieveUpdateDestroyAPI):
     """API endpoint for detail view of a Build object."""
+
+    queryset = Build.objects.all()
+    serializer_class = build.serializers.BuildSerializer
 
     def destroy(self, request, *args, **kwargs):
         """Only allow deletion of a BuildOrder if the build status is CANCELLED"""
@@ -318,9 +281,7 @@ class BuildLineFilter(rest_filters.FilterSet):
     # Fields on related models
     consumable = rest_filters.BooleanFilter(label=_('Consumable'), field_name='bom_item__consumable')
     optional = rest_filters.BooleanFilter(label=_('Optional'), field_name='bom_item__optional')
-    assembly = rest_filters.BooleanFilter(label=_('Assembly'), field_name='bom_item__sub_part__assembly')
     tracked = rest_filters.BooleanFilter(label=_('Tracked'), field_name='bom_item__sub_part__trackable')
-    testable = rest_filters.BooleanFilter(label=_('Testable'), field_name='bom_item__sub_part__testable')
 
     allocated = rest_filters.BooleanFilter(label=_('Allocated'), method='filter_allocated')
 
@@ -373,7 +334,7 @@ class BuildLineEndpoint:
         return queryset
 
 
-class BuildLineList(BuildLineEndpoint, DataExportViewMixin, ListCreateAPI):
+class BuildLineList(BuildLineEndpoint, ListCreateAPI):
     """API endpoint for accessing a list of BuildLine objects"""
 
     filterset_class = BuildLineFilter
@@ -389,8 +350,6 @@ class BuildLineList(BuildLineEndpoint, DataExportViewMixin, ListCreateAPI):
         'unit_quantity',
         'available_stock',
         'trackable',
-        'allow_variants',
-        'inherited',
     ]
 
     ordering_field_aliases = {
@@ -400,14 +359,10 @@ class BuildLineList(BuildLineEndpoint, DataExportViewMixin, ListCreateAPI):
         'consumable': 'bom_item__consumable',
         'optional': 'bom_item__optional',
         'trackable': 'bom_item__sub_part__trackable',
-        'allow_variants': 'bom_item__allow_variants',
-        'inherited': 'bom_item__inherited',
     }
 
     search_fields = [
         'bom_item__sub_part__name',
-        'bom_item__sub_part__IPN',
-        'bom_item__sub_part__description',
         'bom_item__reference',
     ]
 
@@ -500,18 +455,8 @@ class BuildFinish(BuildOrderContextMixin, CreateAPI):
     """API endpoint for marking a build as finished (completed)."""
 
     queryset = Build.objects.none()
+
     serializer_class = build.serializers.BuildCompleteSerializer
-
-    def get_queryset(self):
-        """Return the queryset for the BuildFinish API endpoint."""
-
-        queryset = super().get_queryset()
-        queryset = queryset.prefetch_related(
-            'build_lines',
-            'build_lines__allocations'
-        )
-
-        return queryset
 
 
 class BuildAutoAllocate(BuildOrderContextMixin, CreateAPI):
@@ -524,6 +469,7 @@ class BuildAutoAllocate(BuildOrderContextMixin, CreateAPI):
     """
 
     queryset = Build.objects.none()
+
     serializer_class = build.serializers.BuildAutoAllocationSerializer
 
 
@@ -539,21 +485,9 @@ class BuildAllocate(BuildOrderContextMixin, CreateAPI):
     """
 
     queryset = Build.objects.none()
+
     serializer_class = build.serializers.BuildAllocationSerializer
 
-
-class BuildIssue(BuildOrderContextMixin, CreateAPI):
-    """API endpoint for issuing a BuildOrder."""
-
-    queryset = Build.objects.all()
-    serializer_class = build.serializers.BuildIssueSerializer
-
-
-class BuildHold(BuildOrderContextMixin, CreateAPI):
-    """API endpoint for placing a BuildOrder on hold."""
-
-    queryset = Build.objects.all()
-    serializer_class = build.serializers.BuildHoldSerializer
 
 class BuildCancel(BuildOrderContextMixin, CreateAPI):
     """API endpoint for cancelling a BuildOrder."""
@@ -600,17 +534,15 @@ class BuildItemFilter(rest_filters.FilterSet):
         return queryset.filter(install_into=None)
 
 
-class BuildItemList(DataExportViewMixin, BulkDeleteMixin, ListCreateAPI):
+class BuildItemList(ListCreateAPI):
     """API endpoint for accessing a list of BuildItem objects.
 
     - GET: Return list of objects
     - POST: Create a new BuildItem object
     """
 
-    queryset = BuildItem.objects.all()
     serializer_class = build.serializers.BuildItemSerializer
     filterset_class = BuildItemFilter
-    filter_backends = SEARCH_ORDER_FILTER_ALIAS
 
     def get_serializer(self, *args, **kwargs):
         """Returns a BuildItemSerializer instance based on the request."""
@@ -626,25 +558,16 @@ class BuildItemList(DataExportViewMixin, BulkDeleteMixin, ListCreateAPI):
         return self.serializer_class(*args, **kwargs)
 
     def get_queryset(self):
-        """Override the queryset method, to perform custom prefetch."""
-        queryset = super().get_queryset()
+        """Override the queryset method, to allow filtering by stock_item.part."""
+        queryset = BuildItem.objects.all()
 
         queryset = queryset.select_related(
             'build_line',
             'build_line__build',
-            'build_line__bom_item',
-            'build_line__bom_item__part',
-            'build_line__bom_item__sub_part',
             'install_into',
             'stock_item',
             'stock_item__location',
             'stock_item__part',
-            'stock_item__supplier_part__part',
-            'stock_item__supplier_part__supplier',
-            'stock_item__supplier_part__manufacturer_part',
-            'stock_item__supplier_part__manufacturer_part__manufacturer',
-        ).prefetch_related(
-            'stock_item__location__tags',
         )
 
         return queryset
@@ -667,29 +590,36 @@ class BuildItemList(DataExportViewMixin, BulkDeleteMixin, ListCreateAPI):
 
         return queryset
 
-    ordering_fields = [
-        'part',
-        'sku',
-        'quantity',
-        'location',
-        'reference',
+    filter_backends = [
+        DjangoFilterBackend,
     ]
 
-    ordering_field_aliases = {
-        'part': 'stock_item__part__name',
-        'sku': 'stock_item__supplier_part__SKU',
-        'location': 'stock_item__location__name',
-        'reference': 'build_line__bom_item__reference',
-    }
 
-    search_fields = [
-        'stock_item__supplier_part__SKU',
-        'stock_item__part__name',
-        'build_line__bom_item__reference',
+class BuildAttachmentList(AttachmentMixin, ListCreateDestroyAPIView):
+    """API endpoint for listing (and creating) BuildOrderAttachment objects."""
+
+    queryset = BuildOrderAttachment.objects.all()
+    serializer_class = build.serializers.BuildAttachmentSerializer
+
+    filterset_fields = [
+        'build',
     ]
+
+
+class BuildAttachmentDetail(AttachmentMixin, RetrieveUpdateDestroyAPI):
+    """Detail endpoint for a BuildOrderAttachment object."""
+
+    queryset = BuildOrderAttachment.objects.all()
+    serializer_class = build.serializers.BuildAttachmentSerializer
 
 
 build_api_urls = [
+
+    # Attachments
+    path('attachment/', include([
+        path('<int:pk>/', BuildAttachmentDetail.as_view(), name='api-build-attachment-detail'),
+        path('', BuildAttachmentList.as_view(), name='api-build-attachment-list'),
+    ])),
 
     # Build lines
     path('line/', include([
@@ -714,8 +644,6 @@ build_api_urls = [
         path('create-output/', BuildOutputCreate.as_view(), name='api-build-output-create'),
         path('delete-outputs/', BuildOutputDelete.as_view(), name='api-build-output-delete'),
         path('scrap-outputs/', BuildOutputScrap.as_view(), name='api-build-output-scrap'),
-        path('issue/', BuildIssue.as_view(), name='api-build-issue'),
-        path('hold/', BuildHold.as_view(), name='api-build-hold'),
         path('finish/', BuildFinish.as_view(), name='api-build-finish'),
         path('cancel/', BuildCancel.as_view(), name='api-build-cancel'),
         path('unallocate/', BuildUnallocate.as_view(), name='api-build-unallocate'),

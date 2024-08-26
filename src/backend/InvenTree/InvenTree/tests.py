@@ -1,5 +1,6 @@
 """Test general functions and helpers."""
 
+import json
 import os
 import time
 from datetime import datetime, timedelta
@@ -28,8 +29,8 @@ import InvenTree.format
 import InvenTree.helpers
 import InvenTree.helpers_model
 import InvenTree.tasks
-from common.currency import currency_codes
 from common.models import CustomUnit, InvenTreeSetting
+from common.settings import currency_codes
 from InvenTree.helpers_mixin import ClassProviderMixin, ClassValidationMixin
 from InvenTree.sanitizer import sanitize_svg
 from InvenTree.unit_test import InvenTreeTestCase
@@ -788,6 +789,33 @@ class TestIncrement(TestCase):
             self.assertEqual(result, b)
 
 
+class TestMakeBarcode(TestCase):
+    """Tests for barcode string creation."""
+
+    def test_barcode_extended(self):
+        """Test creation of barcode with extended data."""
+        bc = helpers.MakeBarcode(
+            'part', 3, {'id': 3, 'url': 'www.google.com'}, brief=False
+        )
+
+        self.assertIn('part', bc)
+        self.assertIn('tool', bc)
+        self.assertIn('"tool": "InvenTree"', bc)
+
+        data = json.loads(bc)
+
+        self.assertEqual(data['part']['id'], 3)
+        self.assertEqual(data['part']['url'], 'www.google.com')
+
+    def test_barcode_brief(self):
+        """Test creation of simple barcode."""
+        bc = helpers.MakeBarcode('stockitem', 7)
+
+        data = json.loads(bc)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data['stockitem'], 7)
+
+
 class TestDownloadFile(TestCase):
     """Tests for DownloadFile."""
 
@@ -1002,7 +1030,7 @@ class TestVersionNumber(TestCase):
 
         s = '.'.join([str(i) for i in v])
 
-        self.assertIn(s, version.inventreeVersion())
+        self.assertTrue(s in version.inventreeVersion())
 
     def test_comparison(self):
         """Test direct comparison of version numbers."""
@@ -1011,10 +1039,10 @@ class TestVersionNumber(TestCase):
         v_c = version.inventreeVersionTuple('1.2.4')
         v_d = version.inventreeVersionTuple('2.0.0')
 
-        self.assertGreater(v_b, v_a)
-        self.assertGreater(v_c, v_b)
-        self.assertGreater(v_d, v_c)
-        self.assertGreater(v_d, v_a)
+        self.assertTrue(v_b > v_a)
+        self.assertTrue(v_c > v_b)
+        self.assertTrue(v_d > v_c)
+        self.assertTrue(v_d > v_a)
 
     def test_commit_info(self):
         """Test that the git commit information is extracted successfully."""
@@ -1037,8 +1065,7 @@ class TestVersionNumber(TestCase):
             subprocess.check_output('git rev-parse --short HEAD'.split()), 'utf-8'
         ).strip()
 
-        # On some systems the hash is a different length, so just check the first 6 characters
-        self.assertEqual(hash[:6], version.inventreeCommitHash()[:6])
+        self.assertEqual(hash, version.inventreeCommitHash())
 
         d = (
             str(subprocess.check_output('git show -s --format=%ci'.split()), 'utf-8')
@@ -1478,7 +1505,7 @@ class MagicLoginTest(InvenTreeTestCase):
         self.assertEqual(mail.outbox[0].subject, '[InvenTree] Log in to the app')
 
         # Check that the token is in the email
-        self.assertIn('http://testserver/api/email/login/', mail.outbox[0].body)
+        self.assertTrue('http://testserver/api/email/login/' in mail.outbox[0].body)
         token = mail.outbox[0].body.split('/')[-1].split('\n')[0][8:]
         self.assertEqual(get_user(token), self.user)
 

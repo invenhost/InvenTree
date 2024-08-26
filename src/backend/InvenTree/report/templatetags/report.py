@@ -7,17 +7,15 @@ from decimal import Decimal
 
 from django import template
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.utils.safestring import SafeString, mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from PIL import Image
 
-import common.icons
 import InvenTree.helpers
 import InvenTree.helpers_model
 import report.helpers
-from common.settings import get_global_setting
+from common.models import InvenTreeSetting
 from company.models import Company
 from part.models import Part
 
@@ -89,7 +87,7 @@ def asset(filename):
         filename = '' + filename
 
     # If in debug mode, return URL to the image, not a local file
-    debug_mode = get_global_setting('REPORT_DEBUG_MODE', cache=False)
+    debug_mode = InvenTreeSetting.get_setting('REPORT_DEBUG_MODE', cache=False)
 
     # Test if the file actually exists
     full_path = settings.MEDIA_ROOT.joinpath('report', 'assets', filename).resolve()
@@ -134,7 +132,7 @@ def uploaded_image(
         filename = '' + filename
 
     # If in debug mode, return URL to the image, not a local file
-    debug_mode = get_global_setting('REPORT_DEBUG_MODE', cache=False)
+    debug_mode = InvenTreeSetting.get_setting('REPORT_DEBUG_MODE', cache=False)
 
     # Check if the file exists
     if not filename:
@@ -172,18 +170,6 @@ def uploaded_image(
     width = kwargs.get('width', None)
     height = kwargs.get('height', None)
 
-    if width is not None:
-        try:
-            width = int(width)
-        except ValueError:
-            width = None
-
-    if height is not None:
-        try:
-            height = int(height)
-        except ValueError:
-            height = None
-
     if width is not None and height is not None:
         # Resize the image, width *and* height are provided
         img = img.resize((width, height))
@@ -199,12 +185,10 @@ def uploaded_image(
         img = img.resize((wsize, height))
 
     # Optionally rotate the image
-    if rotate := kwargs.get('rotate', None):
-        try:
-            rotate = int(rotate)
-            img = img.rotate(rotate)
-        except ValueError:
-            pass
+    rotate = kwargs.get('rotate', None)
+
+    if rotate is not None:
+        img = img.rotate(rotate)
 
     # Return a base-64 encoded image
     img_data = report.helpers.encode_image_base64(img)
@@ -316,7 +300,7 @@ def logo_image(**kwargs):
     - Otherwise, return a path to the default InvenTree logo
     """
     # If in debug mode, return URL to the image, not a local file
-    debug_mode = get_global_setting('REPORT_DEBUG_MODE', cache=False)
+    debug_mode = InvenTreeSetting.get_setting('REPORT_DEBUG_MODE', cache=False)
 
     return InvenTree.helpers.getLogoImage(as_file=not debug_mode, **kwargs)
 
@@ -475,61 +459,3 @@ def format_date(date, timezone=None, format=None):
         return date.strftime(format)
     else:
         return date.isoformat()
-
-
-@register.simple_tag()
-def icon(name, **kwargs):
-    """Render an icon from the icon packs.
-
-    Arguments:
-        name: The name of the icon to render
-
-    Keyword Arguments:
-        class: Optional class name(s) to apply to the icon element
-    """
-    if not name:
-        return ''
-
-    try:
-        pack, icon, variant = common.icons.validate_icon(name)
-    except ValidationError:
-        return ''
-
-    unicode = chr(int(icon['variants'][variant], 16))
-    return mark_safe(
-        f'<i class="icon {kwargs.get("class", "")}" style="font-family: inventree-icon-font-{pack.prefix}">{unicode}</i>'
-    )
-
-
-@register.simple_tag()
-def include_icon_fonts():
-    """Return the CSS font-face rule for the icon fonts used on the current page (or all)."""
-    fonts = []
-
-    for font in common.icons.get_icon_packs().values():
-        # generate the font src string (prefer ttf over woff, woff2 is not supported by weasyprint)
-        if 'truetype' in font.fonts:
-            font_format, url = 'truetype', font.fonts['truetype']
-        elif 'woff' in font.fonts:
-            font_format, url = 'woff', font.fonts['woff']
-
-        fonts.append(f"""
-@font-face {'{'}
-    font-family: 'inventree-icon-font-{font.prefix}';
-    src: url('{InvenTree.helpers_model.construct_absolute_url(url)}') format('{font_format}');
-{'}'}\n""")
-
-    icon_class = f"""
-.icon {'{'}
-    font-style: normal;
-    font-weight: normal;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    /* Better font rendering */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-{'}'}
-    """
-
-    return mark_safe(icon_class + '\n'.join(fonts))

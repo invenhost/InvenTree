@@ -7,7 +7,7 @@
 */
 
 // Keep track of the current user permissions
-let user_roles = null;
+var user_roles = null;
 
 
 /*

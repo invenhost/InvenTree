@@ -1,6 +1,7 @@
 """Django admin interface for the machine app."""
 
 from django.contrib import admin
+from django.http.request import HttpRequest
 
 from machine import models
 

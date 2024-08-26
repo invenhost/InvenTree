@@ -10,11 +10,7 @@ import { IconMenu2 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { identifierString } from '../../functions/conversion';
-import { navigateToLink } from '../../functions/navigation';
-
 export type Breadcrumb = {
-  icon?: React.ReactNode;
   name: string;
   url: string;
 };
@@ -45,15 +41,10 @@ export function BreadcrumbList({
   }, [breadcrumbs]);
 
   return (
-    <Paper p="7" radius="xs" shadow="xs">
-      <Group gap="xs">
+    <Paper p="3" radius="xs">
+      <Group spacing="xs">
         {navCallback && (
-          <ActionIcon
-            key="nav-breadcrumb-action"
-            aria-label="nav-breadcrumb-action"
-            onClick={navCallback}
-            variant="transparent"
-          >
+          <ActionIcon key="nav-action" onClick={navCallback}>
             <IconMenu2 />
           </ActionIcon>
         )}
@@ -62,18 +53,9 @@ export function BreadcrumbList({
             return (
               <Anchor
                 key={index}
-                aria-label={`breadcrumb-${index}-${identifierString(
-                  breadcrumb.name
-                )}`}
-                onClick={(event: any) =>
-                  breadcrumb.url &&
-                  navigateToLink(breadcrumb.url, navigate, event)
-                }
+                onClick={() => breadcrumb.url && navigate(breadcrumb.url)}
               >
-                <Group gap={4}>
-                  {breadcrumb.icon}
-                  <Text size="sm">{breadcrumb.name}</Text>
-                </Group>
+                <Text size="sm">{breadcrumb.name}</Text>
               </Anchor>
             );
           })}

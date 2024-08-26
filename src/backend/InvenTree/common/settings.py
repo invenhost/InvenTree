@@ -1,52 +1,60 @@
 """User-configurable settings for the common app."""
 
-from os import environ
+import logging
+
+from django.conf import settings
+from django.core.cache import cache
+
+from moneyed import CURRENCIES
+
+logger = logging.getLogger('inventree')
 
 
-def get_global_setting(key, backup_value=None, enviroment_key=None, **kwargs):
-    """Return the value of a global setting using the provided key."""
+def currency_code_default():
+    """Returns the default currency code (or USD if not specified)."""
     from common.models import InvenTreeSetting
 
-    if enviroment_key:
-        value = environ.get(enviroment_key)
-        if value:
-            return value
+    try:
+        cached_value = cache.get('currency_code_default', '')
+    except Exception:
+        cached_value = None
 
-    if backup_value is not None:
-        kwargs['backup_value'] = backup_value
+    if cached_value:
+        return cached_value
 
-    return InvenTreeSetting.get_setting(key, **kwargs)
+    try:
+        code = InvenTreeSetting.get_setting(
+            'INVENTREE_DEFAULT_CURRENCY', backup_value='', create=True, cache=True
+        )
+    except Exception:  # pragma: no cover
+        # Database may not yet be ready, no need to throw an error here
+        code = ''
 
+    if code not in CURRENCIES:
+        code = 'USD'  # pragma: no cover
 
-def set_global_setting(key, value, change_user=None, create=True, **kwargs):
-    """Set the value of a global setting using the provided key."""
-    from common.models import InvenTreeSetting
+    # Cache the value for a short amount of time
+    try:
+        cache.set('currency_code_default', code, 30)
+    except Exception:
+        pass
 
-    kwargs['change_user'] = change_user
-    kwargs['create'] = create
-
-    return InvenTreeSetting.set_setting(key, value, **kwargs)
-
-
-def get_user_setting(key, user, backup_value=None, **kwargs):
-    """Return the value of a user-specific setting using the provided key."""
-    from common.models import InvenTreeUserSetting
-
-    kwargs['user'] = user
-
-    if backup_value is not None:
-        kwargs['backup_value'] = backup_value
-
-    return InvenTreeUserSetting.get_setting(key, **kwargs)
+    return code
 
 
-def set_user_setting(key, value, user, **kwargs):
-    """Set the value of a user-specific setting using the provided key."""
-    from common.models import InvenTreeUserSetting
+def all_currency_codes():
+    """Returns a list of all currency codes."""
+    return [(a, CURRENCIES[a].name) for a in CURRENCIES]
 
-    kwargs['user'] = user
 
-    return InvenTreeUserSetting.set_setting(key, value, **kwargs)
+def currency_code_mappings():
+    """Returns the current currency choices."""
+    return [(a, CURRENCIES[a].name) for a in settings.CURRENCIES]
+
+
+def currency_codes():
+    """Returns the current currency codes."""
+    return list(settings.CURRENCIES)
 
 
 def stock_expiry_enabled():

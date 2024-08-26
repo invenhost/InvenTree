@@ -55,7 +55,7 @@ def update_news_feed():
 
     # Fetch and parse feed
     try:
-        feed = requests.get(settings.INVENTREE_NEWS_URL, timeout=30)
+        feed = requests.get(settings.INVENTREE_NEWS_URL)
         d = feedparser.parse(feed.content)
     except Exception:  # pragma: no cover
         logger.warning('update_news_feed: Error parsing the newsfeed')

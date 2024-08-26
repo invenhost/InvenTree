@@ -2,95 +2,110 @@
  * Common rendering functions for table column data.
  */
 import { t } from '@lingui/macro';
-import { Anchor, Group, Skeleton, Text, Tooltip } from '@mantine/core';
-import { IconExclamationCircle, IconLock } from '@tabler/icons-react';
+import { Anchor, Text } from '@mantine/core';
 
 import { YesNoButton } from '../components/buttons/YesNoButton';
 import { Thumbnail } from '../components/images/Thumbnail';
 import { ProgressBar } from '../components/items/ProgressBar';
 import { TableStatusRenderer } from '../components/render/StatusRenderer';
 import { RenderOwner } from '../components/render/User';
-import { formatCurrency, formatDate } from '../defaults/formatters';
+import { formatCurrency, renderDate } from '../defaults/formatters';
 import { ModelType } from '../enums/ModelType';
 import { resolveItem } from '../functions/conversion';
 import { cancelEvent } from '../functions/events';
-import { TableColumn, TableColumnProps } from './Column';
+import { TableColumn } from './Column';
 import { ProjectCodeHoverCard } from './TableHoverCard';
 
 // Render a Part instance within a table
 export function PartColumn(part: any, full_name?: boolean) {
-  return part ? (
-    <Group justify="space-between" wrap="nowrap">
-      <Thumbnail
-        src={part?.thumbnail ?? part?.image}
-        text={full_name ? part?.full_name : part?.name}
-      />
-      <Group justify="flex-end" wrap="nowrap" gap="xs">
-        {part?.active == false && (
-          <Tooltip label={t`Part is not active`}>
-            <IconExclamationCircle color="red" size={16} />
-          </Tooltip>
-        )}
-        {part?.locked && (
-          <Tooltip label={t`Part is locked`}>
-            <IconLock size={16} />
-          </Tooltip>
-        )}
-      </Group>
-    </Group>
-  ) : (
-    <Skeleton />
+  return (
+    <Thumbnail
+      src={part?.thumbnail ?? part.image}
+      text={full_name ? part.full_name : part.name}
+    />
   );
 }
 
-export function LocationColumn(props: TableColumnProps): TableColumn {
+export function LocationColumn({
+  accessor,
+  title,
+  sortable,
+  ordering
+}: {
+  accessor: string;
+  title?: string;
+  sortable?: boolean;
+  ordering?: string;
+}): TableColumn {
   return {
-    accessor: 'location',
-    title: t`Location`,
-    sortable: true,
-    ordering: 'location',
+    accessor: accessor,
+    title: title ?? t`Location`,
+    sortable: sortable ?? true,
+    ordering: ordering ?? 'location',
     render: (record: any) => {
-      let location = resolveItem(record, props.accessor ?? '');
+      let location = resolveItem(record, accessor);
 
       if (!location) {
-        return (
-          <Text style={{ fontStyle: 'italic' }}>{t`No location set`}</Text>
-        );
+        return <Text italic>{t`No location set`}</Text>;
       }
 
       return <Text>{location.name}</Text>;
-    },
-    ...props
+    }
   };
 }
 
-export function BooleanColumn(props: TableColumn): TableColumn {
+export function BooleanColumn({
+  accessor,
+  title,
+  sortable,
+  switchable,
+  ordering
+}: {
+  accessor: string;
+  title?: string;
+  ordering?: string;
+  sortable?: boolean;
+  switchable?: boolean;
+}): TableColumn {
   return {
-    sortable: true,
-    switchable: true,
+    accessor: accessor,
+    title: title,
+    ordering: ordering,
+    sortable: sortable ?? true,
+    switchable: switchable ?? true,
     render: (record: any) => (
-      <YesNoButton value={resolveItem(record, props.accessor ?? '')} />
-    ),
-    ...props
+      <YesNoButton value={resolveItem(record, accessor)} />
+    )
   };
 }
 
-export function DescriptionColumn(props: TableColumnProps): TableColumn {
+export function DescriptionColumn({
+  accessor,
+  sortable,
+  switchable
+}: {
+  accessor?: string;
+  sortable?: boolean;
+  switchable?: boolean;
+}): TableColumn {
   return {
-    accessor: 'description',
+    accessor: accessor ?? 'description',
     title: t`Description`,
-    sortable: false,
-    switchable: true,
-    ...props
+    sortable: sortable ?? false,
+    switchable: switchable ?? true
   };
 }
 
-export function LinkColumn(props: TableColumnProps): TableColumn {
+export function LinkColumn({
+  accessor = 'link'
+}: {
+  accessor?: string;
+}): TableColumn {
   return {
-    accessor: 'link',
+    accessor: accessor,
     sortable: false,
     render: (record: any) => {
-      let url = resolveItem(record, props.accessor ?? 'link');
+      let url = resolveItem(record, accessor);
 
       if (!url) {
         return '-';
@@ -110,28 +125,24 @@ export function LinkColumn(props: TableColumnProps): TableColumn {
           {url}
         </Anchor>
       );
-    },
-    ...props
+    }
   };
 }
 
-export function ReferenceColumn(props: TableColumnProps): TableColumn {
+export function ReferenceColumn(): TableColumn {
   return {
     accessor: 'reference',
-    title: t`Reference`,
     sortable: true,
-    switchable: true,
-    ...props
+    switchable: false
   };
 }
 
-export function NoteColumn(props: TableColumnProps): TableColumn {
+export function NoteColumn(): TableColumn {
   return {
     accessor: 'note',
     sortable: false,
     title: t`Note`,
-    render: (record: any) => record.note ?? record.notes,
-    ...props
+    render: (record: any) => record.note ?? record.notes
   };
 }
 
@@ -149,85 +160,77 @@ export function LineItemsProgressColumn(): TableColumn {
   };
 }
 
-export function ProjectCodeColumn(props: TableColumnProps): TableColumn {
+export function ProjectCodeColumn(): TableColumn {
   return {
     accessor: 'project_code',
     sortable: true,
     render: (record: any) => (
       <ProjectCodeHoverCard projectCode={record.project_code_detail} />
-    ),
-    ...props
+    )
   };
 }
 
-export function StatusColumn({
-  model,
-  sortable,
-  accessor,
-  title,
-  hidden
-}: {
-  model: ModelType;
-  sortable?: boolean;
-  accessor?: string;
-  hidden?: boolean;
-  title?: string;
-}) {
+export function StatusColumn(model: ModelType) {
   return {
-    accessor: accessor ?? 'status',
-    sortable: sortable ?? true,
-    title: title,
-    hidden: hidden,
-    render: TableStatusRenderer(model, accessor ?? 'status_custom_key')
+    accessor: 'status',
+    sortable: true,
+    render: TableStatusRenderer(model)
   };
 }
 
-export function ResponsibleColumn(props: TableColumnProps): TableColumn {
+export function ResponsibleColumn(): TableColumn {
   return {
     accessor: 'responsible',
     sortable: true,
-    switchable: true,
     render: (record: any) =>
-      record.responsible &&
-      RenderOwner({ instance: record.responsible_detail }),
-    ...props
+      record.responsible && RenderOwner({ instance: record.responsible_detail })
   };
 }
 
-export function DateColumn(props: TableColumnProps): TableColumn {
+export function DateColumn({
+  accessor,
+  sortable,
+  switchable,
+  title
+}: {
+  accessor?: string;
+  sortable?: boolean;
+  switchable?: boolean;
+  title?: string;
+}): TableColumn {
   return {
-    accessor: 'date',
-    sortable: true,
-    title: t`Date`,
-    switchable: true,
-    render: (record: any) =>
-      formatDate(resolveItem(record, props.accessor ?? 'date')),
-    ...props
+    accessor: accessor ?? 'date',
+    sortable: sortable ?? true,
+    title: title ?? t`Date`,
+    switchable: switchable,
+    render: (record: any) => renderDate(record[accessor ?? 'date'])
   };
 }
 
-export function TargetDateColumn(props: TableColumnProps): TableColumn {
-  return DateColumn({
+export function TargetDateColumn(): TableColumn {
+  return {
     accessor: 'target_date',
+    sortable: true,
     title: t`Target Date`,
-    ...props
-  });
+    // TODO: custom renderer which alerts user if target date is overdue
+    render: (record: any) => renderDate(record.target_date)
+  };
 }
 
-export function CreationDateColumn(props: TableColumnProps): TableColumn {
-  return DateColumn({
+export function CreationDateColumn(): TableColumn {
+  return {
     accessor: 'creation_date',
-    title: t`Creation Date`,
-    ...props
-  });
+    sortable: true,
+    render: (record: any) => renderDate(record.creation_date)
+  };
 }
 
-export function ShipmentDateColumn(props: TableColumnProps): TableColumn {
-  return DateColumn({
+export function ShipmentDateColumn(): TableColumn {
+  return {
     accessor: 'shipment_date',
-    title: t`Shipment Date`,
-    ...props
-  });
+    sortable: true,
+    render: (record: any) => renderDate(record.shipment_date)
+  };
 }
 
 export function CurrencyColumn({
@@ -249,8 +252,8 @@ export function CurrencyColumn({
     sortable: sortable ?? true,
     render: (record: any) => {
       let currency_key = currency_accessor ?? `${accessor}_currency`;
-      return formatCurrency(resolveItem(record, accessor), {
-        currency: currency ?? resolveItem(record, currency_key)
+      return formatCurrency(record[accessor], {
+        currency: currency ?? record[currency_key]
       });
     }
   };

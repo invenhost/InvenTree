@@ -41,11 +41,8 @@ import {
 } from '../../components/render/StatusRenderer';
 import { MachineSettingList } from '../../components/settings/SettingList';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
-import {
-  useCreateApiFormModal,
-  useDeleteApiFormModal,
-  useEditApiFormModal
-} from '../../hooks/UseForm';
+import { openDeleteApiForm, openEditApiForm } from '../../functions/forms';
+import { useCreateApiFormModal } from '../../hooks/UseForm';
 import { useTable } from '../../hooks/UseTable';
 import { apiUrl } from '../../states/ApiState';
 import { TableColumn } from '../Column';
@@ -69,12 +66,12 @@ interface MachineI {
 }
 
 function MachineStatusIndicator({ machine }: { machine: MachineI }) {
-  const style = { marginLeft: '4px' };
+  const sx = { marginLeft: '4px' };
 
   // machine is not active, show a gray dot
   if (!machine.active) {
     return (
-      <Indicator style={style} color="gray">
+      <Indicator sx={sx} color="gray">
         <Box></Box>
       </Indicator>
     );
@@ -93,7 +90,7 @@ function MachineStatusIndicator({ machine }: { machine: MachineI }) {
     machine.initialized && machine.status > 0 && machine.status < 300;
 
   return (
-    <Indicator processing={processing} style={style} color={color}>
+    <Indicator processing={processing} sx={sx} color={color}>
       <Box></Box>
     </Indicator>
   );
@@ -208,40 +205,9 @@ function MachineDrawer({
     [refreshAll]
   );
 
-  const machineEditModal = useEditApiFormModal({
-    title: t`Edit machine`,
-    url: ApiEndpoints.machine_list,
-    pk: machinePk,
-    fields: useMemo(
-      () => ({
-        name: {},
-        active: {}
-      }),
-      []
-    ),
-    onClose: () => refreshAll()
-  });
-
-  const machineDeleteModal = useDeleteApiFormModal({
-    title: t`Delete machine`,
-    successMessage: t`Machine successfully deleted.`,
-    url: ApiEndpoints.machine_list,
-    pk: machinePk,
-    preFormContent: (
-      <Text>{t`Are you sure you want to remove the machine "${machine?.name}"?`}</Text>
-    ),
-    onFormSuccess: () => {
-      refreshTable();
-      navigate(-1);
-    }
-  });
-
   return (
-    <Stack gap="xs">
-      {machineEditModal.modal}
-      {machineDeleteModal.modal}
-
-      <Group justify="space-between">
+    <Stack spacing="xs">
+      <Group position="apart">
         <Box></Box>
 
         <Group>
@@ -261,11 +227,36 @@ function MachineDrawer({
             actions={[
               EditItemAction({
                 tooltip: t`Edit machine`,
-                onClick: machineEditModal.open
+                onClick: () => {
+                  openEditApiForm({
+                    title: t`Edit machine`,
+                    url: ApiEndpoints.machine_list,
+                    pk: machinePk,
+                    fields: {
+                      name: {},
+                      active: {}
+                    },
+                    onClose: () => refreshAll()
+                  });
+                }
               }),
               DeleteItemAction({
                 tooltip: t`Delete machine`,
-                onClick: machineDeleteModal.open
+                onClick: () => {
+                  openDeleteApiForm({
+                    title: t`Delete machine`,
+                    successMessage: t`Machine successfully deleted.`,
+                    url: ApiEndpoints.machine_list,
+                    pk: machinePk,
+                    preFormContent: (
+                      <Text>{t`Are you sure you want to remove the machine "${machine?.name}"?`}</Text>
+                    ),
+                    onFormSuccess: () => {
+                      refreshTable();
+                      navigate(-1);
+                    }
+                  });
+                }
               }),
               {
                 icon: <IconRefresh />,
@@ -286,8 +277,8 @@ function MachineDrawer({
       </Group>
 
       <Card withBorder>
-        <Stack gap="md">
-          <Group justify="space-between">
+        <Stack spacing="md">
+          <Group position="apart">
             <Title order={4}>
               <Trans>Machine information</Trans>
             </Title>
@@ -295,13 +286,10 @@ function MachineDrawer({
               <IconRefresh />
             </ActionIcon>
           </Group>
-          <Stack pos="relative" gap="xs">
-            <LoadingOverlay
-              visible={isFetching}
-              overlayProps={{ opacity: 0 }}
-            />
+          <Stack pos="relative" spacing="xs">
+            <LoadingOverlay visible={isFetching} overlayOpacity={0} />
             <InfoItem name={t`Machine Type`}>
-              <Group gap="xs">
+              <Group spacing="xs">
                 {machineType ? (
                   <DetailDrawerLink
                     to={`../type-${machine?.machine_type}`}
@@ -314,7 +302,7 @@ function MachineDrawer({
               </Group>
             </InfoItem>
             <InfoItem name={t`Machine Driver`}>
-              <Group gap="xs">
+              <Group spacing="xs">
                 {machineDriver ? (
                   <DetailDrawerLink
                     to={`../driver-${machine?.driver}`}
@@ -345,12 +333,12 @@ function MachineDrawer({
                 <Text fz="sm">{machine?.status_text}</Text>
               </Flex>
             </InfoItem>
-            <Group justify="space-between" gap="xs">
+            <Group position="apart" spacing="xs">
               <Text fz="sm" fw={700}>
                 <Trans>Errors</Trans>:
               </Text>
               {machine && machine?.machine_errors.length > 0 ? (
-                <Badge color="red" style={{ marginLeft: '10px' }}>
+                <Badge color="red" sx={{ marginLeft: '10px' }}>
                   {machine?.machine_errors.length}
                 </Badge>
               ) : (
@@ -424,7 +412,7 @@ export function MachineListTable({
         sortable: true,
         render: function (record) {
           return (
-            <Group justify="left" wrap="nowrap">
+            <Group position="left" noWrap>
               <MachineStatusIndicator machine={record} />
               <Text>{record.name}</Text>
               {record.restart_required && (
@@ -444,7 +432,7 @@ export function MachineListTable({
             (m) => m.slug === record.machine_type
           );
           return (
-            <Group gap="xs">
+            <Group spacing="xs">
               <Text>
                 {machineType ? machineType.name : record.machine_type}
               </Text>
@@ -459,7 +447,7 @@ export function MachineListTable({
         render: (record) => {
           const driver = machineDrivers?.find((d) => d.slug === record.driver);
           return (
-            <Group gap="xs">
+            <Group spacing="xs">
               <Text>{driver ? driver.name : record.driver}</Text>
               {!record.is_driver_available && <UnavailableIndicator />}
             </Group>
@@ -591,12 +579,10 @@ export function MachineListTable({
           tableFilters: [
             {
               name: 'active',
-              label: t`Active`,
               type: 'boolean'
             },
             {
               name: 'machine_type',
-              label: t`Machine Type`,
               type: 'choice',
               choiceFunction: () =>
                 machineTypes
@@ -605,7 +591,6 @@ export function MachineListTable({
             },
             {
               name: 'driver',
-              label: t`Driver`,
               type: 'choice',
               choiceFunction: () =>
                 machineDrivers

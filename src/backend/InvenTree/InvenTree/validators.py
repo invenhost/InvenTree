@@ -13,7 +13,6 @@ from jinja2 import Template
 from moneyed import CURRENCIES
 
 import InvenTree.conversion
-from common.settings import get_global_setting
 
 
 def validate_physical_units(unit):
@@ -64,10 +63,14 @@ class AllowedURLValidator(validators.URLValidator):
 
     def __call__(self, value):
         """Validate the URL."""
+        import common.models
+
         self.schemes = allowable_url_schemes()
 
         # Determine if 'strict' URL validation is required (i.e. if the URL must have a schema prefix)
-        strict_urls = get_global_setting('INVENTREE_STRICT_URLS', cache=False)
+        strict_urls = common.models.InvenTreeSetting.get_setting(
+            'INVENTREE_STRICT_URLS', True, cache=False
+        )
 
         if not strict_urls:
             # Allow URLs which do not have a provided schema

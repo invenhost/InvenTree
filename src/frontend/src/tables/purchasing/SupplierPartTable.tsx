@@ -8,6 +8,7 @@ import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
 import { useSupplierPartFields } from '../../forms/CompanyForms';
+import { openDeleteApiForm, openEditApiForm } from '../../functions/forms';
 import {
   useCreateApiFormModal,
   useDeleteApiFormModal,
@@ -26,7 +27,7 @@ import {
 } from '../ColumnRenderers';
 import { TableFilter } from '../Filter';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowAction, RowDeleteAction, RowEditAction } from '../RowActions';
+import { RowDeleteAction, RowEditAction } from '../RowActions';
 import { TableHoverCard } from '../TableHoverCard';
 
 /*
@@ -134,7 +135,7 @@ export function SupplierPartTable({ params }: { params: any }): ReactNode {
         }
       },
       LinkColumn({}),
-      NoteColumn({}),
+      NoteColumn(),
       {
         accessor: 'available',
         sortable: true,
@@ -166,7 +167,7 @@ export function SupplierPartTable({ params }: { params: any }): ReactNode {
       part: params?.part,
       supplier: params?.supplier
     },
-    table: table,
+    onFormSuccess: table.refreshTable,
     successMessage: t`Supplier part created`
   });
 
@@ -209,19 +210,19 @@ export function SupplierPartTable({ params }: { params: any }): ReactNode {
     pk: selectedSupplierPart,
     title: t`Edit Supplier Part`,
     fields: editSupplierPartFields,
-    table: table
+    onFormSuccess: () => table.refreshTable()
   });
 
   const deleteSupplierPart = useDeleteApiFormModal({
     url: ApiEndpoints.supplier_part_list,
     pk: selectedSupplierPart,
     title: t`Delete Supplier Part`,
-    table: table
+    onFormSuccess: () => table.refreshTable()
   });
 
   // Row action callback
   const rowActions = useCallback(
-    (record: any): RowAction[] => {
+    (record: any) => {
       return [
         RowEditAction({
           hidden: !user.hasChangeRole(UserRoles.purchase_order),
@@ -259,7 +260,6 @@ export function SupplierPartTable({ params }: { params: any }): ReactNode {
             manufacturer_detail: true
           },
           rowActions: rowActions,
-          enableDownload: true,
           tableActions: tableActions,
           tableFilters: tableFilters,
           modelType: ModelType.supplierpart

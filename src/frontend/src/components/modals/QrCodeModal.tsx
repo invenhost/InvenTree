@@ -35,7 +35,7 @@ export function QrCodeModal({
     key: 'camId',
     defaultValue: null
   });
-  const [scanningEnabled, setScanningEnabled] = useState<boolean>(false);
+  const [ScanningEnabled, setIsScanning] = useState<boolean>(false);
   const [wasAutoPaused, setWasAutoPaused] = useState<boolean>(false);
   const documentState = useDocumentVisibility();
 
@@ -48,7 +48,7 @@ export function QrCodeModal({
 
   // Stop/star when leaving or reentering page
   useEffect(() => {
-    if (scanningEnabled && documentState === 'hidden') {
+    if (ScanningEnabled && documentState === 'hidden') {
       stopScanning();
       setWasAutoPaused(true);
     } else if (wasAutoPaused && documentState === 'visible') {
@@ -128,12 +128,12 @@ export function QrCodeModal({
             icon: <IconX />
           });
         });
-      setScanningEnabled(true);
+      setIsScanning(true);
     }
   }
 
   function stopScanning() {
-    if (qrCodeScanner && scanningEnabled) {
+    if (qrCodeScanner && ScanningEnabled) {
       qrCodeScanner.stop().catch((err: string) => {
         showNotification({
           title: t`Error while stopping`,
@@ -142,7 +142,7 @@ export function QrCodeModal({
           icon: <IconX />
         });
       });
-      setScanningEnabled(false);
+      setIsScanning(false);
     }
   }
 
@@ -150,8 +150,8 @@ export function QrCodeModal({
     <Stack>
       <Group>
         <Text size="sm">{camId?.label}</Text>
-        <Space style={{ flex: 1 }} />
-        <Badge>{scanningEnabled ? t`Scanning` : t`Not scanning`}</Badge>
+        <Space sx={{ flex: 1 }} />
+        <Badge>{ScanningEnabled ? t`Scanning` : t`Not scanning`}</Badge>
       </Group>
       <Container px={0} id="reader" w={'100%'} mih="300px" />
       {!camId ? (
@@ -162,26 +162,26 @@ export function QrCodeModal({
         <>
           <Group>
             <Button
-              style={{ flex: 1 }}
+              sx={{ flex: 1 }}
               onClick={() => startScanning()}
-              disabled={camId != undefined && scanningEnabled}
+              disabled={camId != undefined && ScanningEnabled}
             >
               <Trans>Start scanning</Trans>
             </Button>
             <Button
-              style={{ flex: 1 }}
+              sx={{ flex: 1 }}
               onClick={() => stopScanning()}
-              disabled={!scanningEnabled}
+              disabled={!ScanningEnabled}
             >
               <Trans>Stop scanning</Trans>
             </Button>
           </Group>
           {values.length == 0 ? (
-            <Text c={'grey'}>
+            <Text color={'grey'}>
               <Trans>No scans yet!</Trans>
             </Text>
           ) : (
-            <ScrollArea style={{ height: 200 }} type="auto" offsetScrollbars>
+            <ScrollArea sx={{ height: 200 }} type="auto" offsetScrollbars>
               {values.map((value, index) => (
                 <div key={index}>{value}</div>
               ))}

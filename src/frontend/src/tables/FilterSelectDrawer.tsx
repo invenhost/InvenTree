@@ -12,7 +12,7 @@ import {
   Text,
   Tooltip
 } from '@mantine/core';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { StylishText } from '../components/items/StylishText';
 import { TableState } from '../hooks/UseTable';
@@ -41,12 +41,12 @@ function FilterItem({
 
   return (
     <Paper p="sm" shadow="sm" radius="xs">
-      <Group justify="space-between" key={flt.name} wrap="nowrap">
-        <Stack gap="xs">
+      <Group position="apart" key={flt.name}>
+        <Stack spacing="xs">
           <Text size="sm">{flt.label}</Text>
           <Text size="xs">{flt.description}</Text>
         </Stack>
-        <Group justify="right">
+        <Group position="right">
           <Badge>{flt.displayValue ?? flt.value}</Badge>
           <Tooltip label={t`Remove filter`} withinPortal={true}>
             <CloseButton size="md" color="red" onClick={removeFilter} />
@@ -57,6 +57,24 @@ function FilterItem({
   );
 }
 
+interface FilterProps extends React.ComponentPropsWithoutRef<'div'> {
+  name: string;
+  label: string;
+  description?: string;
+}
+
+/*
+ * Custom component for the filter select
+ */
+const FilterSelectItem = forwardRef<HTMLDivElement, FilterProps>(
+  ({ label, description, ...others }, ref) => (
+    <div ref={ref} {...others}>
+      <Text size="sm">{label}</Text>
+      <Text size="xs">{description}</Text>
+    </div>
+  )
+);
+
 function FilterAddGroup({
   tableState,
   availableFilters
@@ -64,19 +82,17 @@ function FilterAddGroup({
   tableState: TableState;
   availableFilters: TableFilter[];
 }) {
-  const filterOptions: TableFilterChoice[] = useMemo(() => {
+  const filterOptions = useMemo(() => {
     let activeFilterNames =
       tableState.activeFilters?.map((flt) => flt.name) ?? [];
 
-    return (
-      availableFilters
-        ?.filter((flt) => !activeFilterNames.includes(flt.name))
-        ?.map((flt) => ({
-          value: flt.name,
-          label: flt.label,
-          description: flt.description
-        })) ?? []
-    );
+    return availableFilters
+      .filter((flt) => !activeFilterNames.includes(flt.name))
+      .map((flt) => ({
+        value: flt.name,
+        label: flt.label,
+        description: flt.description
+      }));
   }, [tableState.activeFilters, availableFilters]);
 
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
@@ -122,10 +138,11 @@ function FilterAddGroup({
   );
 
   return (
-    <Stack gap="xs">
+    <Stack spacing="xs">
       <Divider />
       <Select
         data={filterOptions}
+        itemComponent={FilterSelectItem}
         searchable={true}
         placeholder={t`Select filter`}
         label={t`Filter`}
@@ -136,7 +153,6 @@ function FilterAddGroup({
         <Select
           data={valueOptions}
           label={t`Value`}
-          searchable={true}
           placeholder={t`Select filter value`}
           onChange={(value: string | null) => setSelectedValue(value)}
           maxDropdownHeight={800}
@@ -177,19 +193,16 @@ export function FilterSelectDrawer({
       withCloseButton={true}
       opened={opened}
       onClose={onClose}
-      closeButtonProps={{
-        'aria-label': 'filter-drawer-close'
-      }}
       title={<StylishText size="lg">{t`Table Filters`}</StylishText>}
     >
-      <Stack gap="xs">
+      <Stack spacing="xs">
         {hasFilters &&
           tableState.activeFilters?.map((f) => (
             <FilterItem key={f.name} flt={f} tableState={tableState} />
           ))}
         {hasFilters && <Divider />}
         {addFilter && (
-          <Stack gap="xs">
+          <Stack spacing="xs">
             <FilterAddGroup
               tableState={tableState}
               availableFilters={availableFilters}

@@ -4,7 +4,6 @@
 
 /* globals
     addCachedAlert,
-    addTableFilter,
     baseCurrency,
     calculateTotalPrice,
     clearFormInput,
@@ -17,9 +16,7 @@
     formatCurrency,
     formatDecimal,
     formatPriceRange,
-    getApiIconClass,
     getCurrencyConversionRates,
-    getFormFieldElement,
     getFormFieldValue,
     getTableData,
     global_settings,
@@ -39,11 +36,8 @@
     makeIconBadge,
     makeIconButton,
     makeRemoveButton,
-    moment,
     orderParts,
     partDetail,
-    reloadTableFilters,
-    removeTableFilter,
     renderClipboard,
     renderDate,
     renderLink,
@@ -74,7 +68,6 @@
     duplicateStockItem,
     editStockItem,
     editStockLocation,
-    filterTestStatisticsTableDateRange,
     findStockItemBySerialNumber,
     installStockItem,
     loadInstalledInTable,
@@ -83,7 +76,6 @@
     loadStockTestResultsTable,
     loadStockTrackingTable,
     loadTableFilters,
-    prepareTestStatisticsTable,
     mergeStockItems,
     removeStockRow,
     serializeStockItem,
@@ -144,8 +136,8 @@ function stockLocationTypeFields() {
         name: {},
         description: {},
         icon: {
-            help_text: `{% trans "Icon (optional) - Explore all available icons on" %} <a href="https://tabler.io/icons" target="_blank" rel="noopener noreferrer">Tabler Icons</a>.`,
-            placeholder: 'ti:<icon-name>:<variant> (e.g. ti:alert-circle:filled)',
+            help_text: `{% trans "Default icon for all locations that have no icon set (optional) - Explore all available icons on" %} <a href="https://fontawesome.com/v5/search?s=solid" target="_blank" rel="noopener noreferrer">Font Awesome</a>.`,
+            placeholder: 'fas fa-box',
             icon: "fa-icons",
         },
     }
@@ -161,6 +153,7 @@ function stockLocationFields(options={}) {
             required: false,
             tree_picker: {
                 url: '{% url "api-location-tree" %}',
+                default_icon: global_settings.STOCK_LOCATION_DEFAULT_ICON,
             },
         },
         name: {},
@@ -179,8 +172,8 @@ function stockLocationFields(options={}) {
             },
         },
         custom_icon: {
-            help_text: `{% trans "Icon (optional) - Explore all available icons on" %} <a href="https://tabler.io/icons" target="_blank" rel="noopener noreferrer">Tabler Icons</a>.`,
-            placeholder: 'ti:<icon-name>:<variant> (e.g. ti:alert-circle:filled)',
+            help_text: `{% trans "Icon (optional) - Explore all available icons on" %} <a href="https://fontawesome.com/v5/search?s=solid" target="_blank" rel="noopener noreferrer">Font Awesome</a>.`,
+            placeholder: 'fas fa-box',
             icon: "fa-icons",
         },
     };
@@ -362,6 +355,7 @@ function stockItemFields(options={}) {
             },
             tree_picker: {
                 url: '{% url "api-location-tree" %}',
+                default_icon: global_settings.STOCK_LOCATION_DEFAULT_ICON,
             },
         },
         quantity: {
@@ -380,7 +374,7 @@ function stockItemFields(options={}) {
         batch: {
             icon: 'fa-layer-group',
         },
-        status_custom_key: {},
+        status: {},
         expiry_date: {
             icon: 'fa-calendar-alt',
         },
@@ -698,7 +692,7 @@ function assignStockToCustomer(items, options={}) {
 
         var thumbnail = thumbnailImage(part.thumbnail || part.image);
 
-        var status = stockStatusDisplay(item.status_custom_key, {classes: 'float-right'});
+        var status = stockStatusDisplay(item.status, {classes: 'float-right'});
 
         var quantity = '';
 
@@ -879,7 +873,7 @@ function mergeStockItems(items, options={}) {
             quantity = `{% trans "Quantity" %}: ${item.quantity}`;
         }
 
-        quantity += stockStatusDisplay(item.status_custom_key, {classes: 'float-right'});
+        quantity += stockStatusDisplay(item.status, {classes: 'float-right'});
 
         let buttons = wrapButtons(
             makeIconButton(
@@ -921,6 +915,7 @@ function mergeStockItems(items, options={}) {
                 },
                 tree_picker: {
                     url: '{% url "api-location-tree" %}',
+                    default_icon: global_settings.STOCK_LOCATION_DEFAULT_ICON,
                 },
             },
             notes: {
@@ -1015,16 +1010,14 @@ function mergeStockItems(items, options={}) {
  */
 function adjustStock(action, items, options={}) {
 
-    let formTitle = 'Form Title Here';
-    let actionTitle = null;
-
-    const allowExtraFields = action == 'move';
+    var formTitle = 'Form Title Here';
+    var actionTitle = null;
 
     // API url
     var url = null;
 
-    let specifyLocation = false;
-    let allowSerializedStock = false;
+    var specifyLocation = false;
+    var allowSerializedStock = false;
 
     switch (action) {
     case 'move':
@@ -1076,7 +1069,7 @@ function adjustStock(action, items, options={}) {
 
     for (var idx = 0; idx < items.length; idx++) {
 
-        const item = items[idx];
+        var item = items[idx];
 
         if ((item.serial != null) && (item.serial != '') && !allowSerializedStock) {
             continue;
@@ -1113,11 +1106,15 @@ function adjustStock(action, items, options={}) {
 
         var thumb = thumbnailImage(item.part_detail.thumbnail || item.part_detail.image);
 
-        var status = stockStatusDisplay(item.status_custom_key, {
+        var status = stockStatusDisplay(item.status, {
             classes: 'float-right'
         });
 
-        let quantityString = '';
+        var quantity = item.quantity;
+
+        if (item.part_detail.units != null) {
+            quantity += ` ${item.part_detail.units}`;
+        }
 
         var location = locationDetail(item, false);
 
@@ -1125,18 +1122,12 @@ function adjustStock(action, items, options={}) {
             location = item.location_detail.pathstring;
         }
 
-        if (!item.serial) {
-            quantityString = `${item.quantity}`;
-
-            if (item.part_detail?.units) {
-                quantityString += `<small> [${item.part_detail.units}]</small>`;
-            }
-        } else {
-            quantityString = `#${item.serial}`;
+        if (item.serial != null) {
+            quantity = `#${item.serial}`;
         }
 
         if (item.batch) {
-            quantityString += ` - <small>{% trans "Batch" %}: ${item.batch}</small>`;
+            quantity += ` - <small>{% trans "Batch" %}: ${item.batch}</small>`;
         }
 
         var actionInput = '';
@@ -1158,73 +1149,16 @@ function adjustStock(action, items, options={}) {
             );
         }
 
-        let buttons = '';
-
-        if (allowExtraFields) {
-            buttons += makeIconButton(
-                'fa-layer-group',
-                'button-row-add-batch',
-                pk,
-                '{% trans "Adjust batch code" %}',
-                {
-                    collapseTarget: `row-batch-${pk}`
-                }
-            );
-
-            buttons += makeIconButton(
-                'fa-boxes',
-                'button-row-add-packaging',
-                pk,
-                '{% trans "Adjust packaging" %}',
-                {
-                    collapseTarget: `row-packaging-${pk}`
-                }
-            );
-        }
-
-        buttons += makeRemoveButton(
+        let buttons = wrapButtons(makeRemoveButton(
             'button-stock-item-remove',
             pk,
             '{% trans "Remove stock item" %}',
-        );
-
-        buttons = wrapButtons(buttons);
-
-        // Add in options for "batch code" and "serial numbers"
-        const batch_input = constructField(
-            `items_batch_code_${pk}`,
-            {
-                type: 'string',
-                required: false,
-                label: '{% trans "Batch Code" %}',
-                help_text: '{% trans "Enter batch code for incoming stock items" %}',
-                icon: 'fa-layer-group',
-                value: item.batch,
-            },
-            {
-                hideLabels: true,
-            }
-        );
-
-        const packaging_input = constructField(
-            `items_packaging_${pk}`,
-            {
-                type: 'string',
-                required: false,
-                label: '{% trans "Packaging" %}',
-                help_text: '{% trans "Specify packaging for incoming stock items" %}',
-                icon: 'fa-boxes',
-                value: item.packaging,
-            },
-            {
-                hideLabels: true,
-            }
-        );
+        ));
 
         html += `
         <tr id='stock_item_${pk}' class='stock-item-row'>
             <td id='part_${pk}'>${thumb} ${item.part_detail.full_name}</td>
-            <td id='stock_${pk}'>${quantityString}${status}</td>
+            <td id='stock_${pk}'>${quantity}${status}</td>
             <td id='location_${pk}'>${location}</td>
             <td id='action_${pk}'>
                 <div id='div_id_${pk}'>
@@ -1233,19 +1167,6 @@ function adjustStock(action, items, options={}) {
                 </div>
             </td>
             <td id='buttons_${pk}'>${buttons}</td>
-        </tr>
-        <!-- Hidden row for extra data entry -->
-        <tr id='row-batch-${pk}' class='collapse'>
-            <td colspan='2'></td>
-            <th>{% trans "Batch" %}</th>
-            <td colspan='2'>${batch_input}</td>
-            <td></td>
-        </tr>
-        <tr id='row-packaging-${pk}' class='collapse'>
-            <td colspan='2'></td>
-            <th>{% trans "Packaging" %}</th>
-            <td colspan='2'>${packaging_input}</td>
-            <td></td>
         </tr>`;
 
         itemCount += 1;
@@ -1342,30 +1263,21 @@ function adjustStock(action, items, options={}) {
             var item_pk_values = [];
 
             items.forEach(function(item) {
-                let pk = item.pk;
+                var pk = item.pk;
 
                 // Does the row exist in the form?
-                let row = $(opts.modal).find(`#stock_item_${pk}`);
+                var row = $(opts.modal).find(`#stock_item_${pk}`);
 
                 if (row.exists()) {
 
                     item_pk_values.push(pk);
 
-                    let quantity = getFormFieldValue(`items_quantity_${pk}`, {}, opts);
-                    let line = {
+                    var quantity = getFormFieldValue(`items_quantity_${pk}`, {}, opts);
+
+                    data.items.push({
                         pk: pk,
-                        quantity: quantity
-                    };
-
-                    if (getFormFieldElement(`items_batch_code_${pk}`).exists()) {
-                        line.batch = getFormFieldValue(`items_batch_code_${pk}`);
-                    }
-
-                    if (getFormFieldElement(`items_packaging_${pk}`).exists()) {
-                        line.packaging = getFormFieldValue(`items_packaging_${pk}`);
-                    }
-
-                    data.items.push(line);
+                        quantity: quantity,
+                    });
                 }
             });
 
@@ -1922,8 +1834,7 @@ function makeStockActions(table) {
             }
         },
         {
-
-            label: 'status_custom_key',
+            label: 'status',
             icon: 'fa-info-circle icon-blue',
             title: '{% trans "Change stock status" %}',
             permission: 'stock.change',
@@ -2030,10 +1941,12 @@ function loadStockTable(table, options) {
         setupFilterList(filterKey, table, filterTarget, {
             download: true,
             report: {
-                key: 'stockitem',
+                url: '{% url "api-stockitem-testreport-list" %}',
+                key: 'item',
             },
             labels: {
-                model_type: 'stockitem',
+                url: '{% url "api-stockitem-label-list" %}',
+                key: 'item',
             },
             singular_name: '{% trans "stock item" %}',
             plural_name: '{% trans "stock items" %}',
@@ -2258,7 +2171,7 @@ function loadStockTable(table, options) {
     columns.push(col);
 
     col = {
-        field: 'status_custom_key',
+        field: 'status',
         title: '{% trans "Status" %}',
         formatter: function(value) {
             return stockStatusDisplay(value);
@@ -2653,7 +2566,8 @@ function loadStockLocationTable(table, options) {
     setupFilterList(filterKey, table, filterListElement, {
         download: true,
         labels: {
-            model_type: 'stocklocation',
+            url: '{% url "api-stocklocation-label-list" %}',
+            key: 'location'
         },
         singular_name: '{% trans "stock location" %}',
         plural_name: '{% trans "stock locations" %}',
@@ -2816,8 +2730,9 @@ function loadStockLocationTable(table, options) {
                         }
                     }
 
-                    if (row.icon) {
-                        html += `<span class="${getApiIconClass(row.icon)} me-1"></span>`;
+                    const icon = row.icon || global_settings.STOCK_LOCATION_DEFAULT_ICON;
+                    if (icon) {
+                        html += `<span class="${icon} me-1"></span>`;
                     }
 
                     html += renderLink(
@@ -3076,11 +2991,11 @@ function loadStockTrackingTable(table, options) {
             }
 
             // Status information
-            if (details.status_custom_key) {
+            if (details.status) {
                 html += `<tr><th>{% trans "Status" %}</td>`;
 
                 html += '<td>';
-                html += stockStatusDisplay(details.status_custom_key);
+                html += stockStatusDisplay(details.status);
                 html += '</td></tr>';
 
             }
@@ -3201,7 +3116,7 @@ function loadInstalledInTable(table, options) {
                 }
             },
             {
-                field: 'status_custom_key',
+                field: 'status',
                 title: '{% trans "Status" %}',
                 formatter: function(value) {
                     return stockStatusDisplay(value);
@@ -3266,6 +3181,7 @@ function uninstallStockItem(installed_item_id, options={}) {
                     },
                     tree_picker: {
                         url: '{% url "api-location-tree" %}',
+                        default_icon: global_settings.STOCK_LOCATION_DEFAULT_ICON,
                     },
                 },
                 note: {
@@ -3402,7 +3318,7 @@ function setStockStatus(items, options={}) {
         method: 'POST',
         preFormContent: html,
         fields: {
-            status_custom_key: {},
+            status: {},
             note: {},
         },
         processBeforeUpload: function(data) {
@@ -3417,106 +3333,4 @@ function setStockStatus(items, options={}) {
             $(options.table).bootstrapTable('refresh');
         }
     });
-}
-
-
-/*
- * Load TestStatistics table.
- */
-function loadTestStatisticsTable(table, prefix, url, options, filters = {}) {
-    inventreeGet(url, filters, {
-        async: true,
-        success: function(data) {
-            const keys = ['passed', 'failed', 'total']
-            let header = '';
-            let rows = []
-            let passed= '';
-            let failed = '';
-            let total = '';
-            $('.test-stat-result-cell').remove();
-            $.each(data[0], function(key, value){
-                if (key != "total") {
-                    header += '<th class="test-stat-result-cell">' + key + '</th>';
-                    keys.forEach(function(keyName) {
-                        var tdText = '-';
-                        if (value['total'] != '0' && value[keyName] != '0') {
-                            let percentage = ''
-                            if (keyName != 'total' && value[total] != 0) {
-                                percentage = ' (' + (100.0 * (parseFloat(value[keyName]) / parseFloat(value['total']))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) + '%)';
-                            }
-                            tdText = value[keyName] + percentage;
-                        }
-                        rows[keyName] += '<td class="test-stat-result-cell">' + tdText + '</td>';
-                    })
-                }
-            });
-            $('#' + prefix + '-test-statistics-table-header-id').after(header);
-
-            keys.forEach(function(keyName) {
-                let valueStr = data[0]['total'][keyName];
-                if (keyName != 'total' && data[0]['total']['total'] != '0') {
-                    valueStr += ' (' + (100.0 * (parseFloat(valueStr) / parseFloat(data[0]['total']['total']))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2}) + '%)';
-                }
-                rows[keyName] += '<td class="test-stat-result-cell">' + valueStr + '</td>';
-                $('#' + prefix + '-test-statistics-table-body-' + keyName).after(rows[keyName]);
-            });
-            $('#' + prefix + '-test-statistics-table').show();
-            setupFilterList(prefix + "teststatistics", table, "#filter-list-" + prefix + "teststatistics", options);
-        },
-    });
-}
-
-function prepareTestStatisticsTable(keyName, apiUrl)
-{
-    let options = {
-        custom_actions: [
-            {
-                icon: 'fa-calendar-week',
-                actions: [
-                    {
-                        icon: 'fa-calendar-week',
-                        title: '{% trans "This week" %}',
-                        label: 'this-week',
-                        callback: function(data) {
-                            filterTestStatisticsTableDateRange(data, 'this-week', $("#test-statistics-table"), keyName + 'teststatistics', options);
-                        }
-                    },
-                    {
-                        icon: 'fa-calendar-week',
-                        title: '{% trans "This month" %}',
-                        label: 'this-month',
-                        callback: function(data) {
-                            filterTestStatisticsTableDateRange(data, 'this-month', $("#test-statistics-table"), keyName + 'teststatistics', options);
-                        }
-                    },
-                ],
-            }
-        ],
-        callback: function(table, filters, options) {
-            loadTestStatisticsTable($("#test-statistics-table"), keyName, apiUrl, options, filters);
-        }
-    }
-    setupFilterList(keyName + 'teststatistics', $("#test-statistics-table"), '#filter-list-' + keyName + 'teststatistics', options);
-
-    // Load test statistics table
-    loadTestStatisticsTable($("#test-statistics-table"), keyName, apiUrl, options);
-}
-
-function filterTestStatisticsTableDateRange(data, range, table, tableKey, options)
-{
-    var startDateString = '';
-    var d = new Date();
-    if (range == "this-week") {
-        startDateString = moment(new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() == 0 ? 6 : d.getDay() - 1))).format('YYYY-MM-DD');
-    } else if (range == "this-month") {
-        startDateString = moment(new Date(d.getFullYear(), d.getMonth(), 1)).format('YYYY-MM-DD');
-    } else {
-        console.warn(`Invalid range specified for filterTestStatisticsTableDateRange`);
-        return;
-    }
-    var filters = addTableFilter(tableKey, 'finished_datetime_after', startDateString);
-    removeTableFilter(tableKey, 'finished_datetime_before')
-
-    reloadTableFilters(table, filters, options);
-    setupFilterList(tableKey, table, "#filter-list-" + tableKey, options);
 }

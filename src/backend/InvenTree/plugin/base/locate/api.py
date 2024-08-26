@@ -1,5 +1,6 @@
 """API for location plugins."""
 
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import permissions, serializers
 from rest_framework.exceptions import NotFound, ParseError
 from rest_framework.generics import GenericAPIView

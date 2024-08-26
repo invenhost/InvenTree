@@ -214,41 +214,34 @@ function makeAttachmentActions(permissions, options) {
 /* Load a table of attachments against a specific model.
  * Note that this is a 'generic' table which is used for multiple attachment model classes
  */
-function loadAttachmentTable(model_type, model_id, options={}) {
+function loadAttachmentTable(url, options) {
 
-    const url = '{% url "api-attachment-list" %}';
-    const table = options.table || '#attachment-table';
+    var table = options.table || '#attachment-table';
 
-    let filters = {
-        model_type: model_type,
-        model_id: model_id,
-    };
+    var permissions = {};
 
-    let permissions = {
-        delete: false,
-        add: false,
-        change: false,
-    };
-
-    // Request the permissions for the current user
+    // First we determine which permissions the user has for this attachment table
     $.ajax({
-        url: '{% url "api-user-roles" %}',
+        url: url,
         async: false,
-        dataType: 'json',
+        type: 'OPTIONS',
         contentType: 'application/json',
+        dataType: 'json',
+        accepts: {
+            json: 'application/json',
+        },
         success: function(response) {
-            if (response.is_superuser) {
+            if (response.actions.DELETE) {
                 permissions.delete = true;
-                permissions.add = true;
-                permissions.change = true;
-                return;
             }
 
-            let model_permissions = response?.permissions[model_type] ?? {};
-
-            permissions.delete = model_permissions.includes("delete");
-            permissions.add = model_permissions.includes("add");
-            permissions.change = model_permissions.includes("change");
+            if (response.actions.POST) {
+                permissions.change = true;
+                permissions.add = true;
+            }
+        },
+        error: function(xhr) {
+            showApiError(xhr, url);
         }
     });
 
@@ -268,19 +261,7 @@ function loadAttachmentTable(model_type, model_id, options={}) {
     });
 
     if (permissions.add) {
-        addAttachmentButtonCallbacks(
-            url,
-            {
-                model_type: {
-                    value: model_type,
-                    hidden: true,
-                },
-                model_id: {
-                    value: model_id,
-                    hidden: true,
-                },
-            }
-        );
+        addAttachmentButtonCallbacks(url, options.fields || {});
     } else {
         // Hide the buttons
         $('#new-attachment').hide();
@@ -295,7 +276,7 @@ function loadAttachmentTable(model_type, model_id, options={}) {
         },
         sortable: true,
         search: true,
-        queryParams: filters,
+        queryParams: options.filters || {},
         uniqueId: 'pk',
         sidePagination: 'server',
         onPostBody: function() {
@@ -405,10 +386,7 @@ function loadAttachmentTable(model_type, model_id, options={}) {
         '#attachment-dropzone',
         url,
         {
-            data: {
-                model_type: model_type,
-                model_id: model_id,
-            },
+            data: options.filters,
             label: 'attachment',
             method: 'POST',
             success: function() {

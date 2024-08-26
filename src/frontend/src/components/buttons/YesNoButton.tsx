@@ -22,7 +22,6 @@ export function PassFailButton({
       variant="filled"
       radius="lg"
       size="sm"
-      style={{ maxWidth: '50px' }}
     >
       {v ? pass : fail}
     </Badge>

@@ -38,9 +38,11 @@ class AppMixin:
             force_reload (bool, optional): Only reload base apps. Defaults to False.
             full_reload (bool, optional): Reload everything - including plugin mechanism. Defaults to False.
         """
-        from common.settings import get_global_setting
+        from common.models import InvenTreeSetting
 
-        if settings.PLUGIN_TESTING or get_global_setting('ENABLE_PLUGINS_APP'):
+        if settings.PLUGIN_TESTING or InvenTreeSetting.get_setting(
+            'ENABLE_PLUGINS_APP'
+        ):
             logger.info('Registering IntegrationPlugin apps')
             apps_changed = False
 

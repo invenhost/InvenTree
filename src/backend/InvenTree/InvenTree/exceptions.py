@@ -9,6 +9,7 @@ import traceback
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.utils import IntegrityError, OperationalError
 from django.utils.translation import gettext_lazy as _
 
 import rest_framework.views as drfviews

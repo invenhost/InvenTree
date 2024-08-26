@@ -1,6 +1,6 @@
 import { Text } from '@mantine/core';
 
-import * as classes from '../../main.css';
+import { InvenTreeStyle } from '../../globalStyle';
 
 export function StylishText({
   children,
@@ -9,6 +9,7 @@ export function StylishText({
   children: JSX.Element | string;
   size?: string;
 }) {
+  const { classes } = InvenTreeStyle();
   return (
     <Text size={size} className={classes.signText} variant="gradient">
       {children}

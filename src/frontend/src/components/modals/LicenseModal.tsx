@@ -18,7 +18,7 @@ import { apiUrl } from '../../states/ApiState';
 
 export function LicenceView(entries: Readonly<any[]>) {
   return (
-    <Stack gap="xs">
+    <Stack spacing="xs">
       <Divider />
       {entries?.length > 0 ? (
         <Accordion variant="contained" defaultValue="-">
@@ -28,7 +28,7 @@ export function LicenceView(entries: Readonly<any[]>) {
               value={`entry-${index}`}
             >
               <Accordion.Control>
-                <Group justify="space-between" grow>
+                <Group position="apart" grow>
                   <Text>{entry.name}</Text>
                   <Text>{entry.license}</Text>
                   <Space />
@@ -63,7 +63,7 @@ export function LicenseModal() {
   const rspdata = !data ? [] : Object.keys(data ?? {});
 
   return (
-    <Stack gap="xs">
+    <Stack spacing="xs">
       <Divider />
       <LoadingOverlay visible={isFetching} />
       {isFetching && (

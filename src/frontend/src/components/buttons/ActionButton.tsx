@@ -1,18 +1,19 @@
-import { ActionIcon, FloatingPosition, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
+import { FloatingPosition } from '@mantine/core/lib/Floating';
 import { ReactNode } from 'react';
 
-import { identifierString } from '../../functions/conversion';
+import { notYetImplemented } from '../../functions/notifications';
 
 export type ActionButtonProps = {
+  key?: string;
   icon?: ReactNode;
   text?: string;
   color?: string;
   tooltip?: string;
   variant?: string;
   size?: number | string;
-  radius?: number | string;
   disabled?: boolean;
-  onClick: (event?: any) => void;
+  onClick?: any;
   hidden?: boolean;
   tooltipAlignment?: FloatingPosition;
 };
@@ -26,27 +27,21 @@ export function ActionButton(props: ActionButtonProps) {
   return (
     !hidden && (
       <Tooltip
-        key={`tooltip-${props.tooltip ?? props.text}`}
+        key={`tooltip-${props.key}`}
         disabled={!props.tooltip && !props.text}
         label={props.tooltip ?? props.text}
         position={props.tooltipAlignment ?? 'left'}
       >
         <ActionIcon
-          key={`action-icon-${props.tooltip ?? props.text}`}
+          key={`action-icon-${props.key}`}
           disabled={props.disabled}
-          p={17}
-          radius={props.radius ?? 'xs'}
+          radius="xs"
           color={props.color}
           size={props.size}
-          aria-label={`action-button-${identifierString(
-            props.tooltip ?? props.text ?? ''
-          )}`}
-          onClick={() => {
-            props.onClick();
-          }}
-          variant={props.variant ?? 'transparent'}
+          onClick={props.onClick ?? notYetImplemented}
+          variant={props.variant ?? 'light'}
         >
-          <Group gap="xs" wrap="nowrap">
+          <Group spacing="xs" noWrap={true}>
             {props.icon}
           </Group>
         </ActionIcon>

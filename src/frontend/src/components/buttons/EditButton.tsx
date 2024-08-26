@@ -14,11 +14,7 @@ export function EditButton({
 }) {
   saveIcon = saveIcon || <IconDeviceFloppy />;
   return (
-    <ActionIcon
-      onClick={() => setEditing()}
-      disabled={disabled}
-      variant="default"
-    >
+    <ActionIcon onClick={() => setEditing()} disabled={disabled}>
       {editing ? saveIcon : <IconEdit />}
     </ActionIcon>
   );
