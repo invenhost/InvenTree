@@ -1,39 +1,50 @@
 import {
+  Icon,
   Icon123,
+  IconArrowBigDownLineFilled,
   IconArrowMerge,
   IconBinaryTree2,
   IconBookmarks,
   IconBox,
+  IconBrandTelegram,
   IconBuilding,
   IconBuildingFactory2,
   IconBuildingStore,
   IconBusinessplan,
   IconCalendar,
   IconCalendarStats,
-  IconCategory,
+  IconCalendarTime,
   IconCheck,
   IconCircleCheck,
   IconCircleMinus,
   IconCirclePlus,
   IconCircleX,
+  IconClipboardCheck,
   IconClipboardList,
   IconClipboardText,
   IconCopy,
   IconCornerDownLeft,
+  IconCornerDownRight,
   IconCornerUpRightDouble,
   IconCurrencyDollar,
   IconDots,
-  IconDotsCircleHorizontal,
+  IconEdit,
+  IconExclamationCircle,
   IconExternalLink,
   IconFileUpload,
+  IconFlag,
   IconFlagShare,
   IconGitBranch,
   IconGridDots,
+  IconHandStop,
   IconHash,
+  IconHierarchy,
+  IconInfoCircle,
   IconLayersLinked,
   IconLink,
   IconList,
   IconListTree,
+  IconLock,
   IconMail,
   IconMapPin,
   IconMapPinHeart,
@@ -46,14 +57,18 @@ import {
   IconPaperclip,
   IconPhone,
   IconPhoto,
+  IconPoint,
   IconPrinter,
   IconProgressCheck,
+  IconProps,
   IconQrcode,
   IconQuestionMark,
   IconRulerMeasure,
   IconShoppingCart,
   IconShoppingCartHeart,
+  IconShoppingCartPlus,
   IconSitemap,
+  IconSquareXFilled,
   IconStack2,
   IconStatusChange,
   IconTag,
@@ -65,6 +80,7 @@ import {
   IconTrash,
   IconTruck,
   IconTruckDelivery,
+  IconTruckReturn,
   IconUnlink,
   IconUser,
   IconUserStar,
@@ -74,19 +90,13 @@ import {
   IconWorldCode,
   IconX
 } from '@tabler/icons-react';
-import { IconFlag } from '@tabler/icons-react';
-import { IconSquareXFilled } from '@tabler/icons-react';
-import { IconShoppingCartPlus } from '@tabler/icons-react';
-import { IconArrowBigDownLineFilled } from '@tabler/icons-react';
-import { IconTruckReturn } from '@tabler/icons-react';
-import { IconInfoCircle } from '@tabler/icons-react';
-import { IconCalendarTime } from '@tabler/icons-react';
-import { Icon, IconProps } from '@tabler/icons-react';
 import React from 'react';
 
 const icons = {
+  name: IconPoint,
   description: IconInfoCircle,
-  variant_of: IconStatusChange,
+  variant_of: IconHierarchy,
+  revision_of: IconStatusChange,
   unallocated_stock: IconPackage,
   total_in_stock: IconPackages,
   minimum_stock: IconFlag,
@@ -101,7 +111,9 @@ const icons = {
   units: IconRulerMeasure,
   keywords: IconTag,
   status: IconInfoCircle,
+  edit: IconEdit,
   info: IconInfoCircle,
+  exclamation: IconExclamationCircle,
   details: IconInfoCircle,
   parameters: IconList,
   list: IconList,
@@ -122,6 +134,7 @@ const icons = {
   shipment: IconTruckDelivery,
   scheduling: IconCalendarStats,
   test_templates: IconTestPipe,
+  test: IconTestPipe,
   related_parts: IconLayersLinked,
   attachments: IconPaperclip,
   note: IconNotes,
@@ -137,6 +150,10 @@ const icons = {
   plus: IconCirclePlus,
   minus: IconCircleMinus,
   cancel: IconCircleX,
+  hold: IconHandStop,
+  issue: IconBrandTelegram,
+  complete: IconCircleCheck,
+  deliver: IconTruckDelivery,
 
   // Part Icons
   active: IconCheck,
@@ -150,6 +167,8 @@ const icons = {
   inactive: IconX,
   part: IconBox,
   supplier_part: IconPackageImport,
+  lock: IconLock,
+  locked: IconLock,
 
   calendar: IconCalendar,
   external: IconExternalLink,
@@ -162,6 +181,7 @@ const icons = {
   link: IconLink,
   responsible: IconUserStar,
   pricing: IconCurrencyDollar,
+  total_price: IconCurrencyDollar,
   currency: IconCurrencyDollar,
   stocktake: IconClipboardList,
   user: IconUser,
@@ -188,9 +208,12 @@ const icons = {
   phone: IconPhone,
   sitemap: IconSitemap,
   downleft: IconCornerDownLeft,
+  downright: IconCornerDownRight,
   barcode: IconQrcode,
   barLine: IconMinusVertical,
+  batch: IconClipboardText,
   batch_code: IconClipboardText,
+  tick_off: IconClipboardCheck,
   destination: IconFlag,
   repeat_destination: IconFlagShare,
   unlink: IconUnlink,
@@ -218,7 +241,7 @@ type InvenTreeIconProps = {
   iconProps?: TablerIconProps;
 };
 
-export function InvenTreeIcon(props: InvenTreeIconProps) {
+export function InvenTreeIcon(props: Readonly<InvenTreeIconProps>) {
   let Icon: React.ForwardRefExoticComponent<React.RefAttributes<any>>;
 
   if (props.icon in icons) {

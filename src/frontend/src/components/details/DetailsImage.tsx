@@ -8,7 +8,7 @@ import {
   Paper,
   Text,
   rem,
-  useMantineTheme
+  useMantineColorScheme
 } from '@mantine/core';
 import { Dropzone, FileWithPath, IMAGE_MIME_TYPE } from '@mantine/dropzone';
 import { useHover } from '@mantine/hooks';
@@ -21,6 +21,7 @@ import { cancelEvent } from '../../functions/events';
 import { InvenTreeIcon } from '../../functions/icons';
 import { useUserState } from '../../states/UserState';
 import { PartThumbTable } from '../../tables/part/PartThumbTable';
+import { vars } from '../../theme';
 import { ActionButton } from '../buttons/ActionButton';
 import { ApiImage } from '../images/ApiImage';
 import { StylishText } from '../items/StylishText';
@@ -84,10 +85,8 @@ function UploadModal({
   apiPath: string;
   setImage: (image: string) => void;
 }) {
-  const [file1, setFile] = useState<FileWithPath | null>(null);
+  const [currentFile, setCurrentFile] = useState<FileWithPath | null>(null);
   let uploading = false;
-
-  const theme = useMantineTheme();
 
   // Components to show in the Dropzone when no file is selected
   const noFileIdle = (
@@ -122,7 +121,7 @@ function UploadModal({
       >
         <Image
           src={imageUrl}
-          imageProps={{ onLoad: () => URL.revokeObjectURL(imageUrl) }}
+          onLoad={() => URL.revokeObjectURL(imageUrl)}
           radius="sm"
           height={75}
           fit="contain"
@@ -160,21 +159,23 @@ function UploadModal({
     }
   };
 
+  const { colorScheme } = useMantineColorScheme();
+
   const primaryColor =
-    theme.colors[theme.primaryColor][theme.colorScheme === 'dark' ? 4 : 6];
-  const redColor = theme.colors.red[theme.colorScheme === 'dark' ? 4 : 6];
+    vars.colors.primaryColors[colorScheme === 'dark' ? 4 : 6];
+  const redColor = vars.colors.red[colorScheme === 'dark' ? 4 : 6];
 
   return (
-    <Paper sx={{ height: '220px' }}>
+    <Paper style={{ height: '220px' }}>
       <Dropzone
-        onDrop={(files) => setFile(files[0])}
+        onDrop={(files) => setCurrentFile(files[0])}
         maxFiles={1}
         accept={IMAGE_MIME_TYPE}
         loading={uploading}
       >
         <Group
-          position="center"
-          spacing="xl"
+          justify="center"
+          gap="xl"
           style={{ minHeight: rem(140), pointerEvents: 'none' }}
         >
           <Dropzone.Accept>
@@ -197,7 +198,9 @@ function UploadModal({
               }}
             />
           </Dropzone.Reject>
-          <Dropzone.Idle>{file1 ? fileInfo(file1) : noFileIdle}</Dropzone.Idle>
+          <Dropzone.Idle>
+            {currentFile ? fileInfo(currentFile) : noFileIdle}
+          </Dropzone.Idle>
         </Group>
       </Dropzone>
       <Paper
@@ -217,12 +220,15 @@ function UploadModal({
       >
         <Button
           variant="outline"
-          disabled={!file1}
-          onClick={() => setFile(null)}
+          disabled={!currentFile}
+          onClick={() => setCurrentFile(null)}
         >
           <Trans>Clear</Trans>
         </Button>
-        <Button disabled={!file1} onClick={() => uploadImage(file1)}>
+        <Button
+          disabled={!currentFile}
+          onClick={() => uploadImage(currentFile)}
+        >
           <Trans>Submit</Trans>
         </Button>
       </Paper>
@@ -252,7 +258,7 @@ function ImageActionButtons({
     <>
       {visible && (
         <Group
-          spacing="xs"
+          gap="xs"
           style={{ zIndex: 2, position: 'absolute', top: '10px', left: '10px' }}
         >
           {actions.selectExisting && (
@@ -322,7 +328,7 @@ function ImageActionButtons({
 /**
  * Renders an image with action buttons for display on Details panels
  */
-export function DetailsImage(props: DetailImageProps) {
+export function DetailsImage(props: Readonly<DetailImageProps>) {
   // Displays a group of ActionButtons on hover
   const { hovered, ref } = useHover();
   const [img, setImg] = useState<string>(props.src ?? backup_image);
@@ -353,31 +359,27 @@ export function DetailsImage(props: DetailImageProps) {
   };
 
   return (
-    <>
-      <AspectRatio ref={ref} maw={IMAGE_DIMENSION} ratio={1}>
-        <>
-          <ApiImage
-            src={img}
-            height={IMAGE_DIMENSION}
-            width={IMAGE_DIMENSION}
-            onClick={expandImage}
-          />
-          {permissions.hasChangeRole(props.appRole) &&
-            hasOverlay &&
-            hovered && (
-              <Overlay color="black" opacity={0.8} onClick={expandImage}>
-                <ImageActionButtons
-                  visible={hovered}
-                  actions={props.imageActions}
-                  apiPath={props.apiPath}
-                  hasImage={props.src ? true : false}
-                  pk={props.pk}
-                  setImage={setAndRefresh}
-                />
-              </Overlay>
-            )}
-        </>
-      </AspectRatio>
-    </>
+    <AspectRatio ref={ref} maw={IMAGE_DIMENSION} ratio={1} pos="relative">
+      <>
+        <ApiImage
+          src={img}
+          mah={IMAGE_DIMENSION}
+          maw={IMAGE_DIMENSION}
+          onClick={expandImage}
+        />
+        {permissions.hasChangeRole(props.appRole) && hasOverlay && hovered && (
+          <Overlay color="black" opacity={0.8} onClick={expandImage}>
+            <ImageActionButtons
+              visible={hovered}
+              actions={props.imageActions}
+              apiPath={props.apiPath}
+              hasImage={props.src ? true : false}
+              pk={props.pk}
+              setImage={setAndRefresh}
+            />
+          </Overlay>
+        )}
+      </>
+    </AspectRatio>
   );
 }

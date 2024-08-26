@@ -15,7 +15,7 @@ import { apiUrl } from '../../states/ApiState';
 import { useUserState } from '../../states/UserState';
 import { TableColumn } from '../Column';
 import { InvenTreeTable } from '../InvenTreeTable';
-import { RowDeleteAction, RowEditAction } from '../RowActions';
+import { RowAction, RowDeleteAction, RowEditAction } from '../RowActions';
 
 export function ContactTable({
   companyId,
@@ -80,18 +80,18 @@ export function ContactTable({
       company: companyId
     },
     fields: contactFields,
-    onFormSuccess: table.refreshTable
+    table: table
   });
 
   const deleteContact = useDeleteApiFormModal({
     url: ApiEndpoints.contact_list,
     pk: selectedContact,
     title: t`Delete Contact`,
-    onFormSuccess: table.refreshTable
+    table: table
   });
 
   const rowActions = useCallback(
-    (record: any) => {
+    (record: any): RowAction[] => {
       let can_edit =
         user.hasChangeRole(UserRoles.purchase_order) ||
         user.hasChangeRole(UserRoles.sales_order);
@@ -143,6 +143,7 @@ export function ContactTable({
         tableState={table}
         columns={columns}
         props={{
+          enableDownload: true,
           rowActions: rowActions,
           tableActions: tableActions,
           params: {

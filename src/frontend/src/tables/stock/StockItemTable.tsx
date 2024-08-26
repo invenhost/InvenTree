@@ -4,7 +4,7 @@ import { ReactNode, useMemo } from 'react';
 
 import { AddItemButton } from '../../components/buttons/AddItemButton';
 import { ActionDropdown } from '../../components/items/ActionDropdown';
-import { formatCurrency, renderDate } from '../../defaults/formatters';
+import { formatCurrency, formatPriceRange } from '../../defaults/formatters';
 import { ApiEndpoints } from '../../enums/ApiEndpoints';
 import { ModelType } from '../../enums/ModelType';
 import { UserRoles } from '../../enums/Roles';
@@ -21,6 +21,7 @@ import {
   useTransferStockItem
 } from '../../forms/StockForms';
 import { InvenTreeIcon } from '../../functions/icons';
+import { notYetImplemented } from '../../functions/notifications';
 import { useCreateApiFormModal } from '../../hooks/UseForm';
 import { useTable } from '../../hooks/UseTable';
 import { apiUrl } from '../../states/ApiState';
@@ -47,6 +48,16 @@ function stockItemTableColumns(): TableColumn[] {
       sortable: true,
       render: (record: any) => PartColumn(record?.part_detail)
     },
+    {
+      accessor: 'part_detail.IPN',
+      title: t`IPN`,
+      sortable: true
+    },
+    {
+      accessor: 'part_detail.revision',
+      title: t`Revision`,
+      sortable: true
+    },
     DescriptionColumn({
       accessor: 'part_detail.description'
     }),
@@ -64,6 +75,18 @@ function stockItemTableColumns(): TableColumn[] {
         let part = record?.part_detail ?? {};
         let extra: ReactNode[] = [];
         let color = undefined;
+
+        // Determine if a stock item is "in stock"
+        // TODO: Refactor this out into a function
+        let in_stock =
+          !record?.belongs_to &&
+          !record?.consumed_by &&
+          !record?.customer &&
+          !record?.is_building &&
+          !record?.sales_order &&
+          !record?.expired &&
+          record?.quantity &&
+          record?.quantity > 0;
 
         if (record.serial && quantity == 1) {
           text = `# ${record.serial}`;
@@ -166,7 +189,6 @@ function stockItemTableColumns(): TableColumn[] {
         }
 
         if (quantity <= 0) {
-          color = 'red';
           extra.push(
             <Text
               key="depleted"
@@ -175,11 +197,15 @@ function stockItemTableColumns(): TableColumn[] {
           );
         }
 
+        if (!in_stock) {
+          color = 'red';
+        }
+
         return (
           <TableHoverCard
             value={
-              <Group spacing="xs" position="left" noWrap={true}>
-                <Text color={color}>{text}</Text>
+              <Group gap="xs" justify="left" wrap="nowrap">
+                <Text c={color}>{text}</Text>
                 {part.units && (
                   <Text size="xs" color={color}>
                     [{part.units}]
@@ -193,7 +219,7 @@ function stockItemTableColumns(): TableColumn[] {
         );
       }
     },
-    StatusColumn(ModelType.stockitem),
+    StatusColumn({ model: ModelType.stockitem }),
     {
       accessor: 'batch',
       sortable: true
@@ -203,21 +229,17 @@ function stockItemTableColumns(): TableColumn[] {
     }),
     DateColumn({
       accessor: 'stocktake_date',
-      title: t`Stocktake`,
+      title: t`Stocktake Date`,
       sortable: true
     }),
-    {
-      accessor: 'expiry_date',
-      sortable: true,
-      switchable: true,
-      render: (record: any) => renderDate(record.expiry_date)
-    },
-    {
-      accessor: 'updated',
-      sortable: true,
-      switchable: true,
-      render: (record: any) => renderDate(record.updated)
-    },
+    DateColumn({
+      title: t`Expiry Date`,
+      accessor: 'expiry_date'
+    }),
+    DateColumn({
+      title: t`Last Updated`,
+      accessor: 'updated'
+    }),
     // TODO: purchase order
     // TODO: Supplier part
     {
@@ -228,10 +250,32 @@ function stockItemTableColumns(): TableColumn[] {
         formatCurrency(record.purchase_price, {
           currency: record.purchase_price_currency
         })
+    },
+    {
+      accessor: 'packaging',
+      sortable: true
+    },
+    {
+      accessor: 'stock_value',
+      title: t`Stock Value`,
+      sortable: false,
+      render: (record: any) => {
+        let min_price =
+          record.purchase_price || record.part_detail?.pricing_min;
+        let max_price =
+          record.purchase_price || record.part_detail?.pricing_max;
+        let currency = record.purchase_price_currency || undefined;
+
+        return formatPriceRange(min_price, max_price, {
+          currency: currency,
+          multiplier: record.quantity
+        });
+      }
+    },
+    {
+      accessor: 'notes',
+      sortable: false
     }
-    // TODO: stock value
-    // TODO: packaging
-    // TODO: notes
   ];
 }
 
@@ -342,12 +386,12 @@ function stockItemTableFilters(): TableFilter[] {
  */
 export function StockItemTable({
   params = {},
-  allowAdd = true,
+  allowAdd = false,
   tableName = 'stockitems'
 }: {
   params?: any;
   allowAdd?: boolean;
-  tableName?: string;
+  tableName: string;
 }) {
   let tableColumns = useMemo(() => stockItemTableColumns(), []);
   let tableFilters = useMemo(() => stockItemTableFilters(), []);
@@ -359,7 +403,10 @@ export function StockItemTable({
     return {
       items: table.selectedRecords,
       model: ModelType.stockitem,
-      refresh: table.refreshTable
+      refresh: table.refreshTable,
+      filters: {
+        in_stock: true
+      }
     };
   }, [table]);
 
@@ -394,7 +441,7 @@ export function StockItemTable({
     let can_change_order = user.hasChangeRole(UserRoles.purchase_order);
     return [
       <ActionDropdown
-        key="stockoperations"
+        tooltip={t`Stock Actions`}
         icon={<InvenTreeIcon icon="stock" />}
         disabled={table.selectedRecords.length === 0}
         actions={[
@@ -460,7 +507,8 @@ export function StockItemTable({
             name: t`Order stock`,
             icon: <InvenTreeIcon icon="buy" />,
             tooltip: t`Order new stock`,
-            disabled: !can_add_order || !can_change_order
+            disabled: !can_add_order || !can_change_order,
+            onClick: notYetImplemented
           },
           {
             name: t`Assign to customer`,
@@ -488,7 +536,7 @@ export function StockItemTable({
         onClick={() => newStockItem.open()}
       />
     ];
-  }, [user, table]);
+  }, [user, table, allowAdd]);
 
   return (
     <>
@@ -508,6 +556,8 @@ export function StockItemTable({
         props={{
           enableDownload: true,
           enableSelection: true,
+          enableLabels: true,
+          enableReports: true,
           tableFilters: tableFilters,
           tableActions: tableActions,
           modelType: ModelType.stockitem,
