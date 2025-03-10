@@ -43,8 +43,6 @@ import type { TableFilter } from '../tables/Filter';
 export type TableState = {
   tableKey: string;
   refreshTable: () => void;
-  isLoading: boolean;
-  setIsLoading: (value: boolean) => void;
   activeFilters: TableFilter[];
   isLoading: boolean;
   setIsLoading: (value: boolean) => void;

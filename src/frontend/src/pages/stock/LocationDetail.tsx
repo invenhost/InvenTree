@@ -13,6 +13,7 @@ import { ItemDetailsGrid } from '../../components/details/ItemDetails';
 import {
   ActionDropdown,
   BarcodeActionDropdown,
+  DeleteItemAction,
   EditItemAction,
   OptionsActionDropdown
 } from '../../components/items/ActionDropdown';

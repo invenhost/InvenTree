@@ -13,15 +13,6 @@ interface SettingsHeaderInterface {
   subtitle?: string | ReactNode;
 }
 
-interface SettingsHeaderInterface {
-  title: string | ReactNode;
-  shorthand?: string;
-  subtitle?: string | ReactNode;
-  switch_condition?: boolean;
-  switch_text?: string | ReactNode;
-  switch_link?: string;
-}
-
 /**
  * Construct a settings page header with interlinks to one other settings page
  */
