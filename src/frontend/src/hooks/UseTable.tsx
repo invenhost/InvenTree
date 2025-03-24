@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { type SetURLSearchParams, useSearchParams } from 'react-router-dom';
 
 import type { TableFilter } from '../tables/Filter';
+import { type FilterSetState, useFilterSet } from './UseFilterSet';
 
 /*
  * Type definition for representing the state of a table:
@@ -11,9 +12,7 @@ import type { TableFilter } from '../tables/Filter';
  * refreshTable: A callback function to externally refresh the table.
  * isLoading: A boolean flag to indicate if the table is currently loading data
  * setIsLoading: A function to set the isLoading flag
- * activeFilters: An array of active filters (saved to local storage)
- * setActiveFilters: A function to set the active filters
- * clearActiveFilters: A function to clear all active filters
+ * filterSet: A group of active filters
  * queryFilters: A map of query filters (e.g. ?active=true&overdue=false) passed in the URL
  * setQueryFilters: A function to set the query filters
  * clearQueryFilters: A function to clear all query filters
@@ -43,13 +42,12 @@ import type { TableFilter } from '../tables/Filter';
 export type TableState = {
   tableKey: string;
   refreshTable: () => void;
-  isLoading: boolean;
-  setIsLoading: (value: boolean) => void;
-  activeFilters: TableFilter[];
+  activeFilters: TableFilter;
   isLoading: boolean;
   setIsLoading: (value: boolean) => void;
   setActiveFilters: (filters: TableFilter[]) => void;
   clearActiveFilters: () => void;
+  filterSet: FilterSetState;
   queryFilters: URLSearchParams;
   setQueryFilters: SetURLSearchParams;
   clearQueryFilters: () => void;
@@ -103,17 +101,7 @@ export function useTable(tableName: string, idAccessor = 'pk'): TableState {
     setTableKey(generateTableName());
   }, [generateTableName]);
 
-  // Array of active filters (saved to local storage)
-  const [activeFilters, setActiveFilters] = useLocalStorage<TableFilter[]>({
-    key: `inventree-table-filters-${tableName}`,
-    defaultValue: [],
-    getInitialValueInEffect: false
-  });
-
-  // Callback to clear all active filters from the table
-  const clearActiveFilters = useCallback(() => {
-    setActiveFilters([]);
-  }, []);
+  const filterSet: FilterSetState = useFilterSet(`table-${tableName}`);
 
   // Array of expanded records
   const [expandedRecords, setExpandedRecords] = useState<any[]>([]);
@@ -196,9 +184,7 @@ export function useTable(tableName: string, idAccessor = 'pk'): TableState {
     refreshTable,
     isLoading,
     setIsLoading,
-    activeFilters,
-    setActiveFilters,
-    clearActiveFilters,
+    filterSet,
     queryFilters,
     setQueryFilters,
     clearQueryFilters,
