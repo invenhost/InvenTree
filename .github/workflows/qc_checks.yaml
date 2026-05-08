@@ -222,7 +222,7 @@ jobs:
           echo "Downloaded api.yaml"
       - name: Running OpenAPI Spec diff action
         id: breaking_changes
-        uses: oasdiff/oasdiff-action/diff@f8cb9308b42121e793f835bd14c0b8090420430c # pin@main
+        uses: oasdiff/oasdiff-action/diff@37bf9ff785c7315df88216660826e71be4cc03da # pin@main
         with:
           base: "api.yaml"
           revision: "src/backend/InvenTree/schema.yml"
@@ -363,7 +363,7 @@ jobs:
           pip install .
         if: needs.paths-filter.outputs.submit-performance == 'true'
       - name: Performance Reporting
-        uses: CodSpeedHQ/action@db35df748deb45fdef0960669f57d627c1956c30 # pin@v4
+        uses: CodSpeedHQ/action@c381be0bfd20e844fb45594f6aa182ffcd94545c # pin@v4
         # check if we are in inventree/inventree - reporting only works in that OIDC context
         if: github.repository == 'inventree/InvenTree' && needs.paths-filter.outputs.submit-performance == 'true'
         with:
@@ -454,7 +454,7 @@ jobs:
         env:
           node_version: '>=20.19.0'
       - name: Performance Reporting
-        uses: CodSpeedHQ/action@db35df748deb45fdef0960669f57d627c1956c30 # pin@v4
+        uses: CodSpeedHQ/action@c381be0bfd20e844fb45594f6aa182ffcd94545c # pin@v4
         with:
           mode: walltime
           run: inv dev.test --pytest
@@ -795,7 +795,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # pin@v3
+        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # pin@v3
         with:
           sarif_file: results.sarif
           category: zizmor
