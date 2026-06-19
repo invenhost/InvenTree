@@ -1718,9 +1718,9 @@ pynacl==1.6.2 \
     # via
     #   -c src/backend/requirements.txt
     #   paramiko
-pypdf==6.12.1 \
-    --hash=sha256:3953a097b9f26d4e0ead5ff95943d9971377557662a91d8872186053cd71d30a \
-    --hash=sha256:8fa2a2321cf16247ed848bd7c97f193a60c08670d04abed5b0138327e51c43b0
+pypdf==6.13.3 \
+    --hash=sha256:c6e3f86afb625791510b02ad5480e94b63970bb957df75d44657c282ecc52224 \
+    --hash=sha256:f3cb822769725f1bac658c406cfc9460399043f3750c2d3e4650e0a85eacabd7
     # via
     #   -c src/backend/requirements.txt
     #   -r src/backend/requirements.in
