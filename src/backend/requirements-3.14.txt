@@ -520,9 +520,9 @@ defusedxml==0.7.1 \
     # via
     #   -c src/backend/requirements.txt
     #   python3-openid
-django==5.2.15 \
-    --hash=sha256:0eb4a9bb1853a35b0286dbc6d916bd352c8c2687195a7f2d6f80cefd840e4970 \
-    --hash=sha256:5154a9bf84ac01dde011e367f355c07dbb329532e06810dcf3ef2af269e236e7
+django==6.0.6 \
+    --hash=sha256:25148b1194c47c2e685e5f5e9c5d59c78b075dfd282cb9618861ba6c1708f4d2 \
+    --hash=sha256:ad03916ba59523d781ae5c3f631960c23d69a9d9c43cecda52fc23b47e953713
     # via
     #   -c src/backend/requirements.txt
     #   -r src/backend/requirements.in
@@ -554,9 +554,9 @@ django==5.2.15 \
     #   djangorestframework
     #   djangorestframework-simplejwt
     #   drf-spectacular
-django-allauth[headless, mfa, openid, saml, socialaccount]==65.14.3 \
-    --hash=sha256:1d8e1127bdffceb8001bdd9bafbf97661f81e92f4b7bd4f6e799167b0311286d \
-    --hash=sha256:548eef76ab85f6e48f46f98437abf22acf0e834f73e9915fb6cc3f31a0dcdf4d
+django-allauth[headless, mfa, openid, saml, socialaccount]==65.18.0 \
+    --hash=sha256:afb82e2c545b9a5539370ad120468faaed84715e095a7b6e76972dacdc6376fe \
+    --hash=sha256:e508640c83b94eaf1a9b4e9ac5332dc310dcdc83fca40d58a3f670e15bad1e84
     # via
     #   -c src/backend/requirements.txt
     #   -r src/backend/requirements.in
@@ -655,9 +655,9 @@ django-oauth-toolkit==3.3.0 \
     # via
     #   -c src/backend/requirements.txt
     #   -r src/backend/requirements.in
-django-otp==1.3.0 \
-    --hash=sha256:5277731bc05b6cdbf96aa84ac46018e30ed5fb248086053b0146f925de059060 \
-    --hash=sha256:8f4156a3c14ce2aaa31379385eadf388925cd50fc4b5d20a3b944f454c98ff7c
+django-otp==1.7.0 \
+    --hash=sha256:406d2d7f797dc313569270e06d6c360c7d986c9f653eab80b190d663ed5f1133 \
+    --hash=sha256:961ccf2d80a67303cb46d97427b16c476ee075acfa2b4c82a59d8f1e0745a454
     # via
     #   -c src/backend/requirements.txt
     #   -r src/backend/requirements.in
